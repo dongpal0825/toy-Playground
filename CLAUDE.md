@@ -74,10 +74,13 @@
 
 ## 구현 메모 (지금까지 정한 규칙)
 - 파일 구조와 ERD는 README.md에 정리. DB를 바꾸면 schema.sql과 README의 ERD(mermaid)를 같이 고칠 것
-- 캐릭터 GLB 규칙: Blender에서 앞쪽은 -Y(내보내면 three.js의 +Z), 원점은 발바닥, 키 1.4~1.9m, 유저 색이 입혀질 재질 이름은 "Body"로 시작 (예: Body_Dino). 나머지 재질은 고정 색
-- GLB 원본은 assets/blender/toys.blend (씬 Toy_Dino, Toy_Bear, Toy_Robot, Toy_Duck, Toy_Penguin). 내보낼 때 use_active_scene=True 필수 (안 하면 다른 씬 물체도 들어감)
+- 캐릭터 GLB 규칙: Blender에서 앞쪽은 -Y(내보내면 three.js의 +Z), 원점은 발바닥(오브젝트 위치 0,0,0 — 메쉬를 합친 뒤 위치를 메쉬에 적용해야 함), 키 1.4~1.9m, 유저 색이 입혀질 재질 이름은 "Body"로 시작 (예: Body_Dino). 나머지 재질은 고정 색
+- GLB 원본은 assets/blender/toys.blend (씬 Toy_Dino, Toy_Bear, Toy_Robot, Toy_Duck, Toy_Penguin, Playground). 내보낼 때 use_active_scene=True 필수 (안 하면 다른 씬 물체도 들어감)
 - GLB가 없거나 못 불러오면 characters.js의 기본 도형 모델로 대신 표시
-- 놀이터 맵은 public/js/map.js에서 Three.js 도형으로 생성. 충돌은 원형 colliders 목록
+- 놀이터 맵: Blender 씬 Playground → public/models/playground.glb (약 2.7MB). 맨 위 물체 3개(Ground, Playground, Cloud)로 합쳐서 draw call을 줄임. 충돌 영역은 이름이 COL_로 시작하는 Empty(위치 + scale.x = 반지름). 바닥 표면 높이는 0 이하로 유지 (캐릭터 발이 묻히지 않게)
+- Playground 씬의 RenderCast 컬렉션(캐릭터 복사본 + Render_Cam, Render_Sun)은 발표용 렌더 전용. GLB로 내보낼 때는 Ground/Playground/Cloud/COL_만 선택
+- playground.glb를 못 불러오면 public/js/map.js의 코드 맵으로 대신 표시
+- 점프: 클라이언트에서 중력 계산, y를 move에 같이 보냄 (서버는 0~2로 제한). 이모티콘: 'emote' 이벤트로 번호(0~5)만 전송, DB 저장 안 함
 - 위치 동기화: 클라이언트 15Hz 전송 → 서버 rooms.js 메모리 갱신 → 66ms 타이머로 움직인 사람만 묶어서 'moves' 전송
 - Windows에서 mysql 클라이언트로 SQL을 실행할 때 한글이 깨지지 않게 schema.sql 맨 위에 SET NAMES utf8mb4 유지
 - 세션은 메모리 저장(MemoryStore)이라 서버를 재시작하면 다시 로그인해야 함

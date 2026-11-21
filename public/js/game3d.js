@@ -1,6 +1,7 @@
 // game3d.js: 3D 놀이터 화면. 장면/조명, 내 캐릭터 이동(WASD), 로블록스식 카메라, 다른 유저 표시, 닉네임/말풍선
 import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMap } from './map.js';
 import { createCharacter, CHARACTER_HEIGHT } from './characters.js';
 
@@ -9,6 +10,9 @@ const MAP_LIMIT = 28;        // 서버의 rooms.js와 같은 값
 const PLAYER_RADIUS = 0.45;  // 캐릭터 충돌 반지름
 const SEND_INTERVAL = 1 / 15; // 위치 보내는 간격 (1초에 15번)
 const BUBBLE_MS = 5000;      // 말풍선이 떠 있는 시간
+const JUMP_SPEED = 7.5;      // 점프할 때 위로 튀어 오르는 속도
+const GRAVITY = 24;          // 중력 (클수록 빨리 떨어짐)
+const EMOTE_MS = 2200;       // 이모티콘이 떠 있는 시간 (CSS 애니메이션 길이와 같음)
 
 export async function createGame({ container, me, toys, isTyping, onMove }) {
   // WebGL을 쓸 수 없으면 에러를 던져서 play.js가 "채팅만 모드"로 전환하게 함
@@ -46,8 +50,8 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 80 });
   scene.add(sun);
 
-  // 놀이터 맵
-  const map = createMap();
+  // 놀이터 맵: Blender로 만든 playground.glb를 먼저 불러오고, 실패하면 코드로 만든 맵(map.js)을 사용
+  const map = await loadMap();
   scene.add(map.group);
 
   const toyById = new Map(toys.map((t) => [t.id, t]));
@@ -61,7 +65,7 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   // 캐릭터 1명 만들기: 모델 + 머리 위 라벨(말풍선 자리 + 닉네임)
   async function spawn(p, isMe) {
     const { root, body } = await createCharacter(toyById.get(p.toyId), p.color);
-    root.position.set(p.x, 0, p.z);
+    root.position.set(p.x, p.y || 0, p.z);
     root.rotation.y = p.r || 0;
 
     // (display는 CSS2DRenderer가 매 프레임 덮어쓰므로 inline style 대신 CSS 클래스로 배치)
@@ -78,7 +82,7 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
 
     scene.add(root);
     return { root, body, labelEl, nameEl: name, bubbleEl: null, bubbleTimer: null,
-             target: { x: p.x, z: p.z, r: p.r || 0 }, speed: 0, walkTime: 0 };
+             target: { x: p.x, y: p.y || 0, z: p.z, r: p.r || 0 }, speed: 0, walkTime: 0, vy: 0 };
   }
 
   // 캐릭터 지우기 (모델 + 라벨)
@@ -112,6 +116,7 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   const keys = new Set();
   window.addEventListener('keydown', (e) => {
     if (isTyping()) return;
+    if (e.code === 'Space') e.preventDefault(); // 스페이스바로 화면이 스크롤되거나 버튼이 눌리지 않게
     keys.add(e.code);
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
@@ -157,7 +162,7 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   const right = new THREE.Vector3();
   const move = new THREE.Vector3();
   let sendTimer = 0;
-  let lastSent = { x: NaN, z: NaN, r: NaN };
+  let lastSent = { x: NaN, y: NaN, z: NaN, r: NaN };
 
   function updateSelf(dt) {
     if (!self) return;
@@ -184,14 +189,24 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
       self.speed = 0;
     }
 
+    // 점프: 땅에 있을 때 스페이스바를 누르면 위로 튀어 오르고, 중력으로 다시 떨어짐
+    const onGround = pos.y <= 0;
+    if (onGround && keys.has('Space')) self.vy = JUMP_SPEED;
+    if (!onGround || self.vy > 0) {
+      self.vy -= GRAVITY * dt;
+      pos.y = Math.max(0, pos.y + self.vy * dt);
+      if (pos.y === 0) self.vy = 0;
+    }
+
     // 1초에 15번, 실제로 움직였을 때만 서버로 위치 전송
     sendTimer += dt;
     if (sendTimer >= SEND_INTERVAL) {
       sendTimer = 0;
       const r = self.root.rotation.y;
-      if (Math.abs(pos.x - lastSent.x) > 0.01 || Math.abs(pos.z - lastSent.z) > 0.01 || Math.abs(r - lastSent.r) > 0.02) {
-        lastSent = { x: pos.x, z: pos.z, r };
-        onMove(pos.x, pos.z, r);
+      if (Math.abs(pos.x - lastSent.x) > 0.01 || Math.abs(pos.z - lastSent.z) > 0.01 ||
+          Math.abs(pos.y - lastSent.y) > 0.01 || Math.abs(r - lastSent.r) > 0.02) {
+        lastSent = { x: pos.x, y: pos.y, z: pos.z, r };
+        onMove(pos.x, pos.z, r, pos.y);
       }
     }
   }
@@ -220,8 +235,9 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
       const p = c.root.position;
       const dx = c.target.x - p.x, dz = c.target.z - p.z;
       // 너무 멀리 떨어져 있으면 바로 이동 (순간이동/재접속 등)
-      if (dx * dx + dz * dz > 100) p.set(c.target.x, 0, c.target.z);
+      if (dx * dx + dz * dz > 100) p.set(c.target.x, c.target.y, c.target.z);
       else { p.x += dx * k; p.z += dz * k; }
+      p.y += (c.target.y - p.y) * Math.min(1, k * 1.6); // 점프 높이는 조금 더 빨리 따라감
       c.root.rotation.y = lerpAngle(c.root.rotation.y, c.target.r, k);
       c.speed = Math.hypot(dx, dz) > 0.05 ? MOVE_SPEED : 0;
     }
@@ -230,11 +246,12 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   // 걷는 동안 통통 튀고 좌우로 뒤뚱거리는 장난감 느낌 애니메이션
   function animateWalk(dt) {
     for (const c of characters.values()) {
-      if (c.speed > 0) c.walkTime += dt * 12;
+      const walking = c.speed > 0 && c.root.position.y < 0.01; // 공중에서는 걷기 흔들림 없음
+      if (walking) c.walkTime += dt * 12;
       else c.walkTime = 0;
-      const bob = c.speed > 0 ? Math.abs(Math.sin(c.walkTime)) * 0.12 : 0;
+      const bob = walking ? Math.abs(Math.sin(c.walkTime)) * 0.12 : 0;
       c.body.position.y = THREE.MathUtils.lerp(c.body.position.y, bob, 0.5);
-      c.body.rotation.z = c.speed > 0 ? Math.sin(c.walkTime) * 0.12 : c.body.rotation.z * 0.8;
+      c.body.rotation.z = walking ? Math.sin(c.walkTime) * 0.12 : c.body.rotation.z * 0.8;
     }
   }
 
@@ -243,9 +260,9 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
     const t = self ? self.root.position : new THREE.Vector3(0, 0, 18);
     const cx = t.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist;
     const cz = t.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist;
-    const cy = 1.2 + Math.sin(cam.pitch) * cam.dist;
+    const cy = 1.2 + t.y * 0.5 + Math.sin(cam.pitch) * cam.dist; // 점프하면 카메라도 살짝 따라 올라감
     camera.position.set(cx, Math.max(cy, 0.5), cz);
-    camera.lookAt(t.x, 1.2, t.z);
+    camera.lookAt(t.x, 1.2 + t.y * 0.5, t.z);
   }
 
   // ===== 매 프레임 실행되는 게임 루프 =====
@@ -280,8 +297,18 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
       for (const m of list) {
         if (m.id === myId) continue;
         const c = characters.get(m.id);
-        if (c) c.target = { x: m.x, z: m.z, r: m.r };
+        if (c) c.target = { x: m.x, y: m.y || 0, z: m.z, r: m.r };
       }
+    },
+    // 이모티콘 띄우기: 머리 위에 크게 떠올랐다가 사라짐 (말풍선과 같은 라벨 묶음 맨 위)
+    showEmote(id, emoji) {
+      const c = characters.get(id);
+      if (!c) return;
+      const el = document.createElement('div');
+      el.className = 'emote';
+      el.textContent = emoji;
+      c.labelEl.insertBefore(el, c.labelEl.firstChild);
+      setTimeout(() => el.remove(), EMOTE_MS);
     },
     // 말풍선 띄우기: 몇 초 뒤 사라짐. 새 채팅이 오면 이전 말풍선은 바꿈
     showBubble(id, text) {
@@ -311,4 +338,36 @@ function lerpAngle(a, b, t) {
   if (d > Math.PI) d -= Math.PI * 2;
   if (d < -Math.PI) d += Math.PI * 2;
   return a + d * t;
+}
+
+// Blender로 만든 놀이터(playground.glb) 불러오기
+// 충돌 영역: GLB 안에서 이름이 "COL_"로 시작하는 빈 물체(Empty)의 위치와 크기(scale.x = 반지름)를 사용
+async function loadMap() {
+  try {
+    const gltf = await new GLTFLoader().loadAsync('/models/playground.glb');
+    const group = gltf.scene;
+    const colliders = [];
+    group.updateMatrixWorld(true);
+    const wp = new THREE.Vector3(), ws = new THREE.Vector3();
+    // 맨 위 물체 이름(Ground, Playground, Cloud, COL_...)을 기준으로 처리
+    for (const top of group.children) {
+      if (top.name.startsWith('COL_')) {
+        top.getWorldPosition(wp);
+        top.getWorldScale(ws);
+        colliders.push({ x: wp.x, z: wp.z, r: ws.x });
+        continue;
+      }
+      const isGround = top.name.startsWith('Ground');
+      const isCloud = top.name.startsWith('Cloud');
+      top.traverse((o) => {
+        if (!o.isMesh) return;
+        o.castShadow = !isGround && !isCloud; // 바닥은 그림자를 받기만, 구름은 그림자 없음
+        o.receiveShadow = !isCloud;
+      });
+    }
+    return { group, colliders };
+  } catch (err) {
+    console.warn('playground.glb를 불러오지 못해서 기본 맵을 사용해요:', err.message);
+    return createMap();
+  }
 }

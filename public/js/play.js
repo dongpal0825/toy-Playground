@@ -8,6 +8,9 @@ const chatInput = document.getElementById('chat-input');
 const playerCount = document.getElementById('player-count');
 const notice = document.getElementById('notice');
 
+// 이모티콘 목록 (서버의 EMOTE_COUNT와 개수를 맞춤). 숫자키 1~6 또는 아래 버튼으로 사용
+const EMOTES = ['👋', '😂', '❤️', '😮', '👍', '🎉'];
+
 let game = null;          // 3D 게임 객체 (불러오기에 실패하면 null 그대로)
 let selfId = null;        // 내 소켓 id
 const players = new Map(); // 같은 방에 있는 사람들 (소켓 id -> 정보)
@@ -55,6 +58,11 @@ socket.on('moves', (list) => {
 socket.on('chat', (c) => {
   addChatLine(c.nickname, c.content, c.at);
   if (game) game.showBubble(c.id, c.content);
+});
+
+// 이모티콘: 그 사람 캐릭터 머리 위에 크게 띄움
+socket.on('emote', (e) => {
+  if (game && EMOTES[e.index]) game.showEmote(e.id, EMOTES[e.index]);
 });
 
 // 입장/퇴장 같은 안내 메시지
@@ -137,6 +145,29 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// ===== 이모티콘 =====
+// 아래쪽 이모티콘 버튼 만들기
+const emoteBar = document.getElementById('emote-bar');
+EMOTES.forEach((emoji, i) => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'emote-btn';
+  btn.textContent = emoji;
+  btn.title = `${i + 1}번 키`;
+  btn.addEventListener('click', () => {
+    socket.emit('emote', i);
+    btn.blur(); // 버튼에 포커스가 남으면 스페이스바가 버튼을 다시 누르므로 해제
+  });
+  emoteBar.appendChild(btn);
+});
+
+// 숫자키 1~6으로 이모티콘 보내기 (채팅 입력 중에는 동작 안 함)
+window.addEventListener('keydown', (e) => {
+  if (isTyping() || e.repeat) return;
+  const n = Number(e.key);
+  if (n >= 1 && n <= EMOTES.length) socket.emit('emote', n - 1);
+});
+
 // 채팅 입력 중인지 (입력 중에는 WASD로 캐릭터가 움직이지 않게 3D 쪽에서 확인)
 function isTyping() {
   const el = document.activeElement;
@@ -153,7 +184,7 @@ function isTyping() {
       me: pageData.me,
       toys: pageData.toys,
       isTyping,
-      onMove: (x, z, r) => socket.emit('move', { x, z, r }),
+      onMove: (x, z, r, y) => socket.emit('move', { x, z, r, y }),
     });
     // 3D가 늦게 준비된 경우, 이미 받은 사람 목록을 반영
     if (selfId) game.setPlayers([...players.values()], selfId);

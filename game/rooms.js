@@ -3,6 +3,7 @@
 
 const ROOM_IDS = [1, 2, 3];
 const MAP_LIMIT = 28; // 놀이터 맵의 가장자리 (x, z 모두 -28 ~ 28 안에서만 움직일 수 있음)
+const MAX_JUMP_HEIGHT = 2; // 점프 높이 최대값 (이상한 값이 와도 하늘로 날아가지 않게)
 
 // 방 번호 -> (소켓 id -> 플레이어 정보) 형태로 저장
 const rooms = new Map(ROOM_IDS.map((id) => [id, new Map()]));
@@ -37,16 +38,17 @@ function listPlayersRaw(roomId) {
 
 // 다른 유저에게 보내도 되는 정보만 추림 (DB id 등은 최소한으로)
 function publicInfo(socketId, p) {
-  return { id: socketId, nickname: p.nickname, toyId: p.toyId, color: p.color, x: p.x, z: p.z, r: p.r };
+  return { id: socketId, nickname: p.nickname, toyId: p.toyId, color: p.color, x: p.x, y: p.y || 0, z: p.z, r: p.r };
 }
 
-// 위치 갱신: 맵 밖으로 못 나가게 자르고, "움직였음" 표시(dirty)를 남김
-function updatePosition(roomId, socketId, x, z, r) {
+// 위치 갱신: 맵 밖으로 못 나가게 자르고, "움직였음" 표시(dirty)를 남김 (y는 점프 높이)
+function updatePosition(roomId, socketId, x, z, r, y = 0) {
   const p = rooms.get(roomId).get(socketId);
   if (!p) return;
   p.x = clamp(x, -MAP_LIMIT, MAP_LIMIT);
   p.z = clamp(z, -MAP_LIMIT, MAP_LIMIT);
   p.r = r;
+  p.y = clamp(y, 0, MAX_JUMP_HEIGHT);
   p.dirty = true;
 }
 
@@ -55,7 +57,7 @@ function takeMoved(roomId) {
   const moved = [];
   for (const [id, p] of rooms.get(roomId)) {
     if (p.dirty) {
-      moved.push({ id, x: round2(p.x), z: round2(p.z), r: round2(p.r) });
+      moved.push({ id, x: round2(p.x), y: round2(p.y), z: round2(p.z), r: round2(p.r) });
       p.dirty = false;
     }
   }

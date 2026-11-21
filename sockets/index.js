@@ -8,6 +8,8 @@ const CHAT_MAX_LENGTH = 200;   // 채팅 한 줄 최대 글자 수 (DB 컬럼 �
 const CHAT_COOLDOWN_MS = 500;  // 채팅 도배 방지: 0.5초에 한 번만
 const MOVE_COOLDOWN_MS = 40;   // 위치 받기 제한: 1초에 최대 25번
 const BROADCAST_MS = 66;       // 위치 보내기 주기: 1초에 약 15번
+const EMOTE_COUNT = 6;         // 이모티콘 종류 수 (화면의 public/js/play.js EMOTES 목록과 같아야 함)
+const EMOTE_COOLDOWN_MS = 800; // 이모티콘 도배 방지
 
 function setupSockets(server, sessionMiddleware) {
   const io = new Server(server);
@@ -27,6 +29,7 @@ function setupSockets(server, sessionMiddleware) {
     let logId = null;       // play_logs 테이블의 이번 접속 기록 id
     let lastChatAt = 0;
     let lastMoveAt = 0;
+    let lastEmoteAt = 0;
     let joining = false;    // 입장 처리 중 표시 (join을 여러 번 보내도 한 번만 처리)
 
     // 입장: 인원 확인 -> 기록 남기기 -> 현재 상태와 최근 채팅을 보내줌
@@ -120,15 +123,26 @@ function setupSockets(server, sessionMiddleware) {
       }
     });
 
+    // 이모티콘: 정해진 목록의 번호만 받아서 같은 방 모두에게 전송 (DB에는 저장하지 않음)
+    socket.on('emote', (index) => {
+      if (roomId === null) return;
+      const i = Number(index);
+      if (!Number.isInteger(i) || i < 0 || i >= EMOTE_COUNT) return;
+      const now = Date.now();
+      if (now - lastEmoteAt < EMOTE_COOLDOWN_MS) return;
+      lastEmoteAt = now;
+      io.to(roomKey(roomId)).emit('emote', { id: socket.id, index: i });
+    });
+
     // 이동: 너무 자주 오는 요청은 버리고 메모리의 위치만 갱신 (전송은 아래 타이머가 모아서 함)
     socket.on('move', (data) => {
       if (roomId === null || !data) return;
       const now = Date.now();
       if (now - lastMoveAt < MOVE_COOLDOWN_MS) return;
       lastMoveAt = now;
-      const x = Number(data.x), z = Number(data.z), r = Number(data.r);
-      if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(r)) return;
-      rooms.updatePosition(roomId, socket.id, x, z, r);
+      const x = Number(data.x), z = Number(data.z), r = Number(data.r), y = Number(data.y) || 0;
+      if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(r) || !Number.isFinite(y)) return;
+      rooms.updatePosition(roomId, socket.id, x, z, r, y);
     });
 
     // 퇴장: 메모리에서 지우고, play_logs에 퇴장 시간과 마지막 위치 저장

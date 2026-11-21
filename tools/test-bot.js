@@ -37,12 +37,23 @@ async function runBot(n) {
     console.log(`[${username}] ${data.roomName} 입장, 현재 ${data.players.length}명`);
     // 놀이터 가운데를 중심으로 원을 그리며 걷기 (1초에 15번 위치 전송)
     let t = n * 2;
+    let jumpT = -1; // 점프 중이면 0~1, 아니면 -1
     setInterval(() => {
       t += 0.02;
       const x = Math.cos(t) * (5 + n), z = Math.sin(t) * (5 + n);
       const r = Math.atan2(-Math.sin(t), Math.cos(t)); // 걷는 방향을 바라봄
-      socket.emit('move', { x, z, r });
+      // 가끔 점프 (포물선으로 올라갔다 내려옴)
+      if (jumpT < 0 && Math.random() < 0.02) jumpT = 0;
+      let y = 0;
+      if (jumpT >= 0) {
+        y = 4 * 1.1 * jumpT * (1 - jumpT);
+        jumpT += 0.1;
+        if (jumpT > 1) jumpT = -1;
+      }
+      socket.emit('move', { x, y, z, r });
     }, 66);
+    // 가끔 이모티콘
+    setInterval(() => socket.emit('emote', Math.floor(Math.random() * 6)), 9000 + n * 700);
     // 6~10초마다 채팅
     setInterval(() => socket.emit('chat', LINES[Math.floor(Math.random() * LINES.length)]), 6000 + n * 1000);
   });

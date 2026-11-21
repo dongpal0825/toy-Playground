@@ -5,14 +5,16 @@
 - 서버: Node.js + Express + EJS + mysql2 + socket.io + express-session + bcrypt
 - 클라이언트: Three.js (GLTFLoader, CSS2DRenderer), 순수 JavaScript
 - DB: MariaDB (로컬 개발은 MySQL 8)
-- 3D 모델: Blender에서 기본 도형을 조합해 직접 제작 → GLB로 내보냄 (`assets/blender/toys.blend`)
+- 3D 모델: 캐릭터 5종과 놀이터 맵 모두 Blender에서 기본 도형을 조합해 직접 제작 → GLB로 내보냄 (`assets/blender/toys.blend`)
+
+![놀이터 렌더](assets/renders/playground.png)
 
 ## 화면 흐름
 
 1. **메인**: 로그인 / 회원가입 (비밀번호는 bcrypt 해시로 저장)
 2. **서버 선택**: 장난감과 색깔을 고르고 서버 1~3 중 하나에 입장 (서버별 현재 인원이 3초마다 갱신됨)
-3. **놀이터**: WASD 이동, 우클릭 드래그로 시점 회전, 휠로 확대/축소, Enter로 채팅
-   - 왼쪽 위 채팅 로그 패널, 캐릭터 머리 위 닉네임과 말풍선
+3. **놀이터**: WASD 이동, Space 점프, 우클릭 드래그로 시점 회전, 휠로 확대/축소, Enter로 채팅, 1~6 이모티콘
+   - 왼쪽 위 채팅 로그 패널, 캐릭터 머리 위 닉네임과 말풍선, 이모티콘(👋😂❤️😮👍🎉)
    - 같은 서버에 있는 사람끼리만 위치와 채팅이 실시간으로 공유됨
 
 ## 폴더 구조
@@ -28,9 +30,11 @@ game/rooms.js       서버 1~3의 접속자와 위치 (메모리)
 views/              EJS 화면 (index, servers, play)
 public/js/play.js   놀이터 화면: 서버 연결 + 채팅 (3D가 실패해도 채팅은 동작)
 public/js/game3d.js 3D 장면, 이동, 카메라, 닉네임/말풍선
-public/js/map.js    놀이터 맵 (미끄럼틀, 그네, 시소, 모래밭, 나무 등)
+public/js/map.js    예비 놀이터 맵 (playground.glb를 못 불러올 때 코드로 만드는 맵)
 public/js/characters.js  캐릭터 모델 불러오기 + 색 바꾸기
-public/models/      캐릭터 GLB 5종
+public/models/      캐릭터 GLB 5종 + 놀이터 맵 playground.glb
+assets/blender/     Blender 원본 (캐릭터 5종 + 놀이터 씬)
+assets/renders/     Blender 렌더 이미지
 tools/test-bot.js   혼자서 멀티플레이를 테스트하는 봇
 ```
 
@@ -90,7 +94,7 @@ erDiagram
 | `chat_messages` | 채팅을 보낼 때 저장, 입장할 때 최근 30개 불러오기 |
 | `play_logs` | 입장할 때 기록 추가, 퇴장할 때 퇴장 시간과 마지막 위치 저장 → 다음 입장 때 그 자리에서 시작 |
 
-캐릭터 위치는 1초에 여러 번 바뀌므로 DB가 아니라 서버 메모리(`game/rooms.js`)에서 관리하고, 1초에 약 15번 같은 서버 사람들에게 보냅니다. DB에는 퇴장할 때 마지막 위치만 저장합니다.
+캐릭터 위치(점프 높이 포함)는 1초에 여러 번 바뀌므로 DB가 아니라 서버 메모리(`game/rooms.js`)에서 관리하고, 1초에 약 15번 같은 서버 사람들에게 보냅니다. DB에는 퇴장할 때 마지막 위치만 저장합니다. 이모티콘도 순간적인 표현이라 DB에 저장하지 않고 같은 서버 사람들에게 바로 전달만 합니다.
 
 ## 로컬에서 실행하기
 
