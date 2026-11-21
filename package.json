@@ -1,0 +1,26 @@
+{
+  "name": "toy-playground",
+  "version": "1.0.0",
+  "description": "장난감 놀이터 - 3D 실시간 채팅 웹 게임",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^18.0.10",
+    "ejs": "^7.0.2",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "mysql2": "^3.24.6",
+    "socket.io": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

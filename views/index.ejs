@@ -1,0 +1,68 @@
+<%# index.ejs: 메인 화면. 로그인 / 회원가입 탭을 전환해서 보여줌 %>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <%- include('partials/head', { title: '메인' }) %>
+</head>
+<body class="main-page">
+  <!-- 배경에 떠다니는 장난감 블록 장식 -->
+  <div class="blocks" aria-hidden="true">
+    <span class="block b1"></span><span class="block b2"></span><span class="block b3"></span>
+    <span class="block b4"></span><span class="block b5"></span>
+  </div>
+
+  <main class="card">
+    <h1 class="logo">Toy<br>Playground</h1>
+    <p class="subtitle">장난감이 되어 친구들과 놀이터에서 놀아요!</p>
+
+    <!-- 탭 버튼: 누르면 아래 폼이 바뀜 -->
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab <%= tab === 'login' ? 'active' : '' %>" data-tab="login">로그인</button>
+      <button type="button" class="tab <%= tab === 'register' ? 'active' : '' %>" data-tab="register">회원가입</button>
+    </div>
+
+    <%# 에러 메시지: 출력 태그(%=)는 자동으로 HTML 이스케이프됨 (XSS 방지) %>
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+    <!-- 로그인 폼 -->
+    <form id="form-login" class="form <%= tab === 'login' ? '' : 'hidden' %>" method="post" action="/login">
+      <label>아이디
+        <input name="username" autocomplete="username" required value="<%= tab === 'login' ? (form.username || '') : '' %>">
+      </label>
+      <label>비밀번호
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn">놀이터 입장하기</button>
+    </form>
+
+    <!-- 회원가입 폼 -->
+    <form id="form-register" class="form <%= tab === 'register' ? '' : 'hidden' %>" method="post" action="/register">
+      <label>아이디 <small>영문/숫자/_ 3~20자</small>
+        <input name="username" autocomplete="username" required pattern="[a-zA-Z0-9_]{3,20}" maxlength="20" value="<%= tab === 'register' ? (form.username || '') : '' %>">
+      </label>
+      <label>닉네임 <small>머리 위에 보이는 이름, 1~12자</small>
+        <input name="nickname" required maxlength="12" value="<%= form.nickname || '' %>">
+      </label>
+      <label>비밀번호 <small>4자 이상</small>
+        <input name="password" type="password" autocomplete="new-password" required minlength="4" maxlength="72">
+      </label>
+      <button class="btn">가입하고 시작하기</button>
+    </form>
+  </main>
+
+  <script>
+    // 탭 전환: 로그인/회원가입 폼 중 하나만 보이게 함
+    document.querySelectorAll('.tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === btn));
+        document.getElementById('form-login').classList.toggle('hidden', btn.dataset.tab !== 'login');
+        document.getElementById('form-register').classList.toggle('hidden', btn.dataset.tab !== 'register');
+        const err = document.querySelector('.error');
+        if (err) err.remove();
+      });
+    });
+  </script>
+</body>
+</html>

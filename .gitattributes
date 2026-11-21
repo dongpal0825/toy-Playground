@@ -1,0 +1,4 @@
+# 줄바꿈을 LF로 통일 (Windows에서 개발하고 리눅스 EC2에서 실행하므로)
+* text=auto eol=lf
+*.glb binary
+*.png binary

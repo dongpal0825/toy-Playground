@@ -1,0 +1,6 @@
+# 비밀 정보 / 설치 파일 / 키 파일은 저장소에 올리지 않음
+.env
+node_modules/
+*.pem
+*.log
+.DS_Store

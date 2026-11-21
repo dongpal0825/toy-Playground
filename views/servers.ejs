@@ -1,0 +1,26 @@
+<%# servers.ejs: 서버 선택 화면 (지금은 목록만 표시, 11/23에 인원 표시/캐릭터 선택/입장 추가 예정) %>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <%- include('partials/head', { title: '서버 선택' }) %>
+</head>
+<body class="main-page">
+  <main class="card wide">
+    <div class="topbar">
+      <p><strong><%= user.nickname %></strong>님, 어서 오세요!</p>
+      <form method="post" action="/logout"><button class="btn small ghost">로그아웃</button></form>
+    </div>
+
+    <h2>서버를 골라 주세요</h2>
+    <ul class="server-list">
+      <% rooms.forEach((room) => { %>
+        <li class="server">
+          <span class="server-name"><%= room.name %></span>
+          <span class="server-count">0 / <%= room.max_players %>명</span>
+          <button class="btn small" disabled>준비 중</button>
+        </li>
+      <% }) %>
+    </ul>
+  </main>
+</body>
+</html>

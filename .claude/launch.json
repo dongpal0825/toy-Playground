@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "toy-playground",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "app.js"],
+      "port": 3000
+    }
+  ]
+}
