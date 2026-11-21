@@ -113,12 +113,26 @@ node tools/test-bot.js 1 3    # 서버 1에 봇 3명 (봇 계정 bot_1, bot_2 ..
 
 ## EC2에 배포하기
 
+처음 한 번:
+
+```bash
+git clone https://github.com/dongpal0825/toy-Playground.git toy-playground
+cd toy-playground
+npm ci --omit=dev
+sudo mysql < schema.sql      # DB, 테이블, 기본 데이터 (다시 실행해도 기존 데이터 유지)
+# MariaDB에 앱 전용 계정(toy_user)을 만들고 .env.example을 복사해 .env 작성
+npm i -g pm2
+NODE_ENV=production pm2 start app.js --name toy-playground --max-memory-restart 300M
+pm2 startup                  # 출력된 sudo 명령을 실행하면 재부팅 때 자동 시작
+pm2 save
+```
+
+코드를 고친 뒤 업데이트:
+
 ```bash
 git pull
-npm install --omit=dev
-mysql -u root -p < schema.sql # 처음 한 번 (다시 실행해도 기존 데이터는 유지)
-pm2 start app.js --name toy-playground
-pm2 save
+npm ci --omit=dev
+pm2 restart toy-playground
 ```
 
 보안 그룹에서 3000번 포트가 열려 있어야 합니다. 웹 페이지와 실시간 통신(WebSocket)이 같은 3000번 포트를 사용합니다.
