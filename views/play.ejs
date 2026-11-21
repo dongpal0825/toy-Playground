@@ -1,0 +1,54 @@
+<%# play.ejs: 놀이터 화면. 3D 화면 위에 채팅 로그 패널(왼쪽 위)과 입력창(아래)을 겹쳐서 보여줌 %>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <%- include('partials/head', { title: room.name }) %>
+  <link rel="stylesheet" href="/css/play.css">
+  <!-- Three.js를 import 할 때 쓸 주소 (node_modules/three를 /vendor/three로 제공 중) -->
+  <script type="importmap">
+    { "imports": {
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/"
+    } }
+  </script>
+</head>
+<body class="play-page">
+  <!-- 3D 놀이터가 그려지는 곳 -->
+  <div id="game"></div>
+
+  <!-- 왼쪽 위: 채팅 로그 패널 -->
+  <section id="chat-panel">
+    <header>
+      <span id="room-name"><%= room.name %></span>
+      <span id="player-count">접속 중…</span>
+    </header>
+    <ul id="chat-log" aria-live="polite"></ul>
+  </section>
+
+  <!-- 오른쪽 위: 나가기 버튼 + 조작법 -->
+  <div id="top-right">
+    <a class="btn small ghost" href="/servers">서버 선택으로</a>
+    <div id="help">
+      <b>WASD</b> 이동 · <b>우클릭 드래그</b> 시점 회전 · <b>휠</b> 확대/축소 · <b>Enter</b> 채팅
+    </div>
+  </div>
+
+  <!-- 아래: 채팅 입력창 -->
+  <form id="chat-form" autocomplete="off">
+    <input id="chat-input" maxlength="200" placeholder="Enter를 눌러 채팅하기">
+    <button class="btn small">보내기</button>
+  </form>
+
+  <!-- 3D를 못 띄울 때나 연결이 끊겼을 때 보여주는 안내 -->
+  <div id="notice" class="hidden"></div>
+
+  <!-- 서버가 화면에 넘겨주는 정보 (내 정보, 장난감 모델 파일 목록) -->
+  <script id="page-data" type="application/json"><%- JSON.stringify({
+      roomId: room.id,
+      me: { nickname: user.nickname, toyId: user.toyId, color: user.color },
+      toys: toys.map((t) => ({ id: t.id, name: t.name, model: t.model_file }))
+    }).replace(/</g, '\\u003c') %></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/play.js"></script>
+</body>
+</html>

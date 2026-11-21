@@ -15,7 +15,7 @@ body {
   place-items: center;
   padding: 24px;
   background: linear-gradient(160deg, #8fd3ff 0%, #c3f0ca 100%);
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* 흰 카드 (로그인 박스) */
@@ -137,3 +137,29 @@ body {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(-18px) rotate(8deg); }
 }
+
+/* ===== 서버 선택 화면: 장난감 / 색깔 고르기 ===== */
+.card h2 { font-size: 16px; margin: 20px 0 10px; }
+.toy-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.toy input { position: absolute; opacity: 0; pointer-events: none; }
+.toy-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 4px; border: 3px solid #2b2b3a; border-radius: 12px;
+  background: #f7f7fb; cursor: pointer; font-size: 13px; font-weight: 700;
+}
+.toy input:checked + .toy-card { background: var(--toy-color, #ffd23f); box-shadow: 3px 3px 0 #2b2b3a; }
+.toy input:focus-visible + .toy-card { outline: 3px solid #3a86ff; }
+.toy-icon { font-size: 28px; line-height: 1; }
+.toy-1::before { content: "🦖"; }
+.toy-2::before { content: "🧸"; }
+.toy-3::before { content: "🤖"; }
+.toy-4::before { content: "🦆"; }
+.toy-5::before { content: "🐧"; }
+
+.color-list { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.swatch {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid #2b2b3a; cursor: pointer; padding: 0;
+}
+.swatch.selected { outline: 3px solid #3a86ff; outline-offset: 2px; }
+.custom-color input { width: 44px; height: 38px; border: 3px solid #2b2b3a; border-radius: 10px; padding: 2px; cursor: pointer; background: #fff; }

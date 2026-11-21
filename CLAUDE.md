@@ -72,6 +72,16 @@
 - .pem 키 파일은 절대 GitHub나 서버에 올리지 않음
 - 로컬 개발 DB: Windows의 MySQL 8.0 (서비스 MySQL80). schema.sql은 MySQL 8과 MariaDB 양쪽에서 동작하게 작성
 
+## 구현 메모 (지금까지 정한 규칙)
+- 파일 구조와 ERD는 README.md에 정리. DB를 바꾸면 schema.sql과 README의 ERD(mermaid)를 같이 고칠 것
+- 캐릭터 GLB 규칙: Blender에서 앞쪽은 -Y(내보내면 three.js의 +Z), 원점은 발바닥, 키 1.4~1.9m, 유저 색이 입혀질 재질 이름은 "Body"로 시작 (예: Body_Dino). 나머지 재질은 고정 색
+- GLB 원본은 assets/blender/toys.blend (씬 Toy_Dino, Toy_Bear, Toy_Robot, Toy_Duck, Toy_Penguin). 내보낼 때 use_active_scene=True 필수 (안 하면 다른 씬 물체도 들어감)
+- GLB가 없거나 못 불러오면 characters.js의 기본 도형 모델로 대신 표시
+- 놀이터 맵은 public/js/map.js에서 Three.js 도형으로 생성. 충돌은 원형 colliders 목록
+- 위치 동기화: 클라이언트 15Hz 전송 → 서버 rooms.js 메모리 갱신 → 66ms 타이머로 움직인 사람만 묶어서 'moves' 전송
+- Windows에서 mysql 클라이언트로 SQL을 실행할 때 한글이 깨지지 않게 schema.sql 맨 위에 SET NAMES utf8mb4 유지
+- 세션은 메모리 저장(MemoryStore)이라 서버를 재시작하면 다시 로그인해야 함
+
 ## Claude Code 작업 방식
 - 위 우선순위 순서대로 진행하고, 큰 설계 변경이 필요하면 먼저 물어볼 것
 - 어떤 파일을 왜 만들었는지 간단히 설명할 것

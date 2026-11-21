@@ -14,6 +14,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 // CSS, JS, 3D 모델 같은 정적 파일 제공 (public 폴더)
 app.use(express.static(path.join(__dirname, 'public')));
+// Three.js 라이브러리를 node_modules에서 바로 제공 (CDN 없이 EC2에서도 동작)
+app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 
 // 로그인/회원가입 폼 데이터를 req.body로 읽기
 app.use(express.urlencoded({ extended: false }));
@@ -23,7 +25,7 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 6 }, // 6시간 유지
+  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 6 }, // 6시간 유지, 다른 사이트에서 보낸 요청엔 쿠키 안 붙음
 });
 app.use(sessionMiddleware);
 
@@ -37,8 +39,11 @@ app.use((req, res, next) => {
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/lobby'));
 
-// 없는 주소로 들어오면 메인으로 돌려보냄
-app.use((req, res) => res.redirect('/'));
+// 없는 주소: 화면 주소면 메인으로 돌려보내고, 파일(.glb, .js 등)이면 404
+app.use((req, res) => {
+  if (path.extname(req.path)) return res.status(404).send('Not Found');
+  res.redirect('/');
+});
 
 // 서버 에러가 나면 콘솔에 남기고 간단한 메시지 표시
 app.use((err, req, res, next) => {
@@ -46,19 +51,34 @@ app.use((err, req, res, next) => {
   res.status(500).send('서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
 });
 
-// HTTP 서버 생성 (다음 단계에서 같은 서버에 socket.io를 붙여 3000번 포트 하나로 사용)
+// HTTP 서버 생성 + 같은 서버에 socket.io를 붙여 3000번 포트 하나로 웹과 실시간 통신을 같이 처리
 const server = http.createServer(app);
+const setupSockets = require('./sockets');
+const { saveAllOnShutdown } = setupSockets(server, sessionMiddleware);
 const PORT = Number(process.env.PORT) || 3000;
 
 server.listen(PORT, async () => {
   console.log(`장난감 놀이터 실행 중: http://localhost:${PORT}`);
-  // 시작할 때 DB 접속이 되는지 한 번 확인
+  // 시작할 때 DB 접속이 되는지 확인하고, 지난번에 정리 못 한 접속 기록을 닫음
   try {
     await pool.query('SELECT 1');
     console.log('DB 연결 성공');
+    await setupSockets.closeDanglingLogs();
   } catch (e) {
     console.error('DB 연결 실패:', e.message);
   }
 });
+
+// 서버 종료 신호(pm2 restart, Ctrl+C)를 받으면 접속 중인 사람들의 위치를 저장하고 끝냄
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  await saveAllOnShutdown();
+  await pool.end().catch(() => {});
+  process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 module.exports = { app, server, sessionMiddleware };

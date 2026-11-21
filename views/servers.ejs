@@ -1,4 +1,4 @@
-<%# servers.ejs: 서버 선택 화면 (지금은 목록만 표시, 11/23에 인원 표시/캐릭터 선택/입장 추가 예정) %>
+<%# servers.ejs: 서버 선택 화면. 캐릭터와 색상을 고르고 서버 1~3 중 하나에 입장 %>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -11,16 +11,73 @@
       <form method="post" action="/logout"><button class="btn small ghost">로그아웃</button></form>
     </div>
 
-    <h2>서버를 골라 주세요</h2>
-    <ul class="server-list">
-      <% rooms.forEach((room) => { %>
-        <li class="server">
-          <span class="server-name"><%= room.name %></span>
-          <span class="server-count">0 / <%= room.max_players %>명</span>
-          <button class="btn small" disabled>준비 중</button>
-        </li>
-      <% }) %>
-    </ul>
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+    <!-- 입장 폼: 캐릭터, 색상, 서버를 한 번에 보냄 -->
+    <form method="post" action="/enter" id="enter-form">
+      <h2>1. 장난감 고르기</h2>
+      <div class="toy-list">
+        <% toys.forEach((toy) => { %>
+          <label class="toy">
+            <input type="radio" name="toyId" value="<%= toy.id %>" <%= toy.id === user.toyId ? 'checked' : '' %> required>
+            <span class="toy-card">
+              <span class="toy-icon toy-<%= toy.id %>"></span>
+              <span class="toy-name"><%= toy.name %></span>
+            </span>
+          </label>
+        <% }) %>
+      </div>
+
+      <h2>2. 색깔 고르기</h2>
+      <div class="color-list">
+        <% colors.forEach((c) => { %>
+          <button type="button" class="swatch" data-color="<%= c %>" style="background: <%= c %>" aria-label="<%= c %>"></button>
+        <% }) %>
+        <label class="custom-color" title="직접 고르기">
+          <input type="color" name="color" id="color-input" value="<%= user.color %>">
+        </label>
+      </div>
+
+      <h2>3. 서버 고르기</h2>
+      <ul class="server-list">
+        <% rooms.forEach((room) => { %>
+          <li class="server">
+            <span class="server-name"><%= room.name %></span>
+            <span class="server-count"><span data-count="<%= room.id %>"><%= room.count %></span> / <%= room.max_players %>명</span>
+            <button class="btn small" name="roomId" value="<%= room.id %>">입장</button>
+          </li>
+        <% }) %>
+      </ul>
+    </form>
   </main>
+
+  <script>
+    // 색 버튼을 누르면 색상 입력칸 값을 바꾸고 선택 표시
+    const colorInput = document.getElementById('color-input');
+    const swatches = document.querySelectorAll('.swatch');
+    function markColor() {
+      swatches.forEach((s) => s.classList.toggle('selected', s.dataset.color.toLowerCase() === colorInput.value.toLowerCase()));
+      document.documentElement.style.setProperty('--toy-color', colorInput.value);
+    }
+    swatches.forEach((s) => s.addEventListener('click', () => { colorInput.value = s.dataset.color; markColor(); }));
+    colorInput.addEventListener('input', markColor);
+    markColor();
+
+    // 3초마다 서버별 현재 인원을 다시 불러와서 숫자 갱신
+    async function refreshCounts() {
+      try {
+        const res = await fetch('/api/room-counts');
+        if (!res.ok) return;
+        const counts = await res.json();
+        for (const [id, n] of Object.entries(counts)) {
+          const el = document.querySelector(`[data-count="${id}"]`);
+          if (el) el.textContent = n;
+        }
+      } catch (e) { /* 네트워크 오류는 무시하고 다음에 다시 시도 */ }
+    }
+    setInterval(refreshCounts, 3000);
+  </script>
 </body>
 </html>
