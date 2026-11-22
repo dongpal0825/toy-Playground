@@ -1,6 +1,7 @@
 // tools/test-bot.js: 혼자서 멀티플레이를 테스트하기 위한 봇. 가짜 유저로 로그인해서 원을 그리며 걷고 가끔 채팅함
 // 사용법: node tools/test-bot.js [서버번호] [봇 수] [주소]
 //   놀이기구 테스트: RIDE=seesaw node tools/test-bot.js 1 2   (slide / swing / seesaw / merry)
+//   봇 여러 무리를 동시에 띄울 때는 BOT_START로 이름 번호를 겹치지 않게: BOT_START=3 -> bot_3부터
 //   예) node tools/test-bot.js 1 2            -> 로컬 서버 1에 봇 2명
 //   예) node tools/test-bot.js 1 1 http://EC2주소:3000
 const { io } = require('socket.io-client');
@@ -9,6 +10,7 @@ const ROOM_ID = Number(process.argv[2] || 1);
 const BOT_COUNT = Number(process.argv[3] || 1);
 const BASE = process.argv[4] || 'http://localhost:3000';
 const RIDE = process.env.RIDE || '';
+const BOT_START = Number(process.env.BOT_START || 1); // 첫 봇 번호
 // 놀이기구 구역 중심 (game/rides.js와 같음)
 const ZONES = { slide: { x: 9, z: -9.6 }, swing: { x: 10.5, z: 6.5 }, seesaw: { x: -10, z: 6 }, merry: { x: 0, z: -11 } };
 const LINES = ['안녕하세요!', '여기 미끄럼틀 있어요', '같이 놀아요~', '그네 타러 갈래요', '삑삑!'];
@@ -78,6 +80,6 @@ async function runBot(n) {
   });
 }
 
-for (let i = 1; i <= BOT_COUNT; i++) {
+for (let i = BOT_START; i < BOT_START + BOT_COUNT; i++) {
   runBot(i).catch((e) => console.error(e.message));
 }
