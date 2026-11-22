@@ -42,12 +42,22 @@
     <button class="btn small">보내기</button>
   </form>
 
+  <!-- 3D 모델을 받는 동안 보여주는 로딩 화면 (play.js가 진행률을 갱신하고 다 받으면 숨김) -->
+  <div id="loading">
+    <div class="loading-box">
+      <div class="loading-title">놀이터 준비 중…</div>
+      <div class="loading-bar"><div id="loading-fill"></div></div>
+      <div id="loading-text">0%</div>
+    </div>
+  </div>
+
   <!-- 3D를 못 띄울 때나 연결이 끊겼을 때 보여주는 안내 -->
   <div id="notice" class="hidden"></div>
 
   <!-- 서버가 화면에 넘겨주는 정보 (내 정보, 장난감 모델 파일 목록) -->
   <script id="page-data" type="application/json"><%- JSON.stringify({
       roomId: room.id,
+      assetVersion: assetVersion,
       me: { nickname: user.nickname, toyId: user.toyId, color: user.color },
       toys: toys.map((t) => ({ id: t.id, name: t.name, model: t.model_file }))
     }).replace(/</g, '\\u003c') %></script>

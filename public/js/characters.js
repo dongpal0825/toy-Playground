@@ -2,17 +2,16 @@
 // public/models/ 의 GLB(Blender로 제작)를 먼저 불러오고, 없으면 기본 도형으로 만든 임시 모델을 사용
 // 색상 변형: GLB 안에서 이름이 "Body"로 시작하는 재질만 유저가 고른 색으로 바꿈
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGLB } from './loader.js';
 
 export const CHARACTER_HEIGHT = 1.7; // 닉네임/말풍선을 띄울 높이
 
-const loader = new GLTFLoader();
 const gltfCache = new Map(); // 파일 이름 -> Promise<gltf 또는 null> (같은 모델을 여러 번 받지 않게)
 
 // GLB 파일을 한 번만 불러오고 결과를 저장
 function loadModel(file) {
   if (!gltfCache.has(file)) {
-    gltfCache.set(file, loader.loadAsync('/models/' + file).catch(() => null));
+    gltfCache.set(file, loadGLB(file).catch(() => null));
   }
   return gltfCache.get(file);
 }

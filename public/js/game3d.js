@@ -1,7 +1,8 @@
 // game3d.js: 3D 놀이터 화면. 장면/조명, 내 캐릭터 이동(WASD), 로블록스식 카메라, 다른 유저 표시, 닉네임/말풍선
 import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadGLB } from './loader.js';
 import { createMap } from './map.js';
 import { createCharacter, CHARACTER_HEIGHT } from './characters.js';
 
@@ -23,10 +24,12 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
 
   // ===== 렌더러, 장면, 카메라 =====
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 고해상도 화면에서 너무 무거워지지 않게 1.5배까지만
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // 부드러운 그림자 (radius로 가장자리를 흐리게)
+  renderer.toneMapping = THREE.NeutralToneMapping; // 장난감 색이 탁해지지 않게 색을 살리는 톤 매핑
+  renderer.toneMappingExposure = 1.05;
   container.appendChild(renderer.domElement);
 
   // 닉네임/말풍선용 HTML 레이어 (3D 위치를 따라다니는 div)
@@ -36,19 +39,29 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   container.appendChild(labelRenderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#8fd3ff');
-  scene.fog = new THREE.Fog('#8fd3ff', 45, 90);
+  scene.background = makeSkyGradient(); // 위는 진한 하늘색, 아래는 연한 하늘색
+  scene.fog = new THREE.Fog('#bfe6ff', 50, 110);
+
+  // 은은한 주변 반사광: 플라스틱 장난감에 하이라이트가 생기도록 (three.js 내장 RoomEnvironment 사용)
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.12;
 
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
 
   // 조명: 하늘빛 + 햇빛(그림자)
-  scene.add(new THREE.HemisphereLight('#ffffff', '#7ccf6b', 1.4));
-  const sun = new THREE.DirectionalLight('#ffffff', 2.2);
-  sun.position.set(15, 25, 10);
+  scene.add(new THREE.HemisphereLight('#e8f6ff', '#86c96f', 0.55));
+  const sun = new THREE.DirectionalLight('#fff3e0', 3.2); // 살짝 따뜻한 햇빛
+  const SUN_OFFSET = new THREE.Vector3(14, 26, 10);      // 내 캐릭터 기준 햇빛 방향
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 80 });
+  // 그림자는 내 캐릭터 주변 44m 범위만 계산해서 더 선명하게 (캐릭터를 따라다님)
+  Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 90 });
+  sun.shadow.normalBias = 0.03; // 곡면에 생기는 줄무늬 그림자(shadow acne) 방지
+  sun.shadow.radius = 3;
   scene.add(sun);
+  scene.add(sun.target);
+  if (location.search.includes('debug')) window.__dbg = { renderer, scene, sun, camera }; // 개발용 (주소에 ?debug)
 
   // 놀이터 맵: Blender로 만든 playground.glb를 먼저 불러오고, 실패하면 코드로 만든 맵(map.js)을 사용
   const map = await loadMap();
@@ -263,12 +276,39 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
     const cy = 1.2 + t.y * 0.5 + Math.sin(cam.pitch) * cam.dist; // 점프하면 카메라도 살짝 따라 올라감
     camera.position.set(cx, Math.max(cy, 0.5), cz);
     camera.lookAt(t.x, 1.2 + t.y * 0.5, t.z);
+    // 햇빛(그림자 범위)도 내 캐릭터를 따라 이동
+    sun.target.position.set(t.x, 0, t.z);
+    sun.position.set(t.x + SUN_OFFSET.x, SUN_OFFSET.y, t.z + SUN_OFFSET.z);
+  }
+
+  // ===== 느린 컴퓨터 자동 대응 =====
+  // 시작 후 몇 초 동안 FPS를 재서 너무 낮으면 1단계: 해상도 낮추기, 2단계: 그림자 끄기
+  const perf = { frames: 0, time: 0, level: 0 };
+  function autoQuality(dt) {
+    if (perf.level >= 2) return;
+    perf.frames++;
+    perf.time += dt;
+    if (perf.time < 4) return;
+    const fps = perf.frames / perf.time;
+    perf.frames = 0;
+    perf.time = 0;
+    if (fps >= 32) { perf.level = 2; return; } // 충분히 빠르면 더 이상 검사하지 않음
+    perf.level++;
+    if (perf.level === 1) {
+      renderer.setPixelRatio(1);
+    } else {
+      renderer.shadowMap.enabled = false;
+      scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+    }
+    console.info(`FPS ${fps.toFixed(0)} → 그래픽 품질 ${perf.level}단계 낮춤`);
   }
 
   // ===== 매 프레임 실행되는 게임 루프 =====
-  const clock = new THREE.Clock();
+  const timer = new THREE.Timer(); // 프레임 사이 시간 계산용
   renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock.getDelta(), 0.1);
+    timer.update();
+    const dt = Math.min(timer.getDelta(), 0.1);
+    autoQuality(dt);
     updateSelf(dt);
     updateOthers(dt);
     animateWalk(dt);
@@ -344,7 +384,7 @@ function lerpAngle(a, b, t) {
 // 충돌 영역: GLB 안에서 이름이 "COL_"로 시작하는 빈 물체(Empty)의 위치와 크기(scale.x = 반지름)를 사용
 async function loadMap() {
   try {
-    const gltf = await new GLTFLoader().loadAsync('/models/playground.glb');
+    const gltf = await loadGLB('playground.glb');
     const group = gltf.scene;
     const colliders = [];
     group.updateMatrixWorld(true);
@@ -370,4 +410,21 @@ async function loadMap() {
     console.warn('playground.glb를 불러오지 못해서 기본 맵을 사용해요:', err.message);
     return createMap();
   }
+}
+
+// 하늘 배경: 위에서 아래로 색이 옅어지는 그라데이션 (작은 캔버스 이미지로 만듦)
+function makeSkyGradient() {
+  const c = document.createElement('canvas');
+  c.width = 2;
+  c.height = 256;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#5fb4ff');
+  grad.addColorStop(0.55, '#a6dcff');
+  grad.addColorStop(1, '#e3f5ff');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

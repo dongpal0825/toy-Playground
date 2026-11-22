@@ -174,10 +174,27 @@ function isTyping() {
   return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
 }
 
+// 로딩 화면 숨기기 (살짝 사라지는 효과)
+function hideLoading() {
+  const el = document.getElementById('loading');
+  el.classList.add('done');
+  setTimeout(() => el.remove(), 500);
+}
+
 // ===== 3D 게임 불러오기 =====
 // 실패해도(WebGL 미지원 등) 채팅은 그대로 쓸 수 있게 try/catch로 감쌈
 (async () => {
   try {
+    // 로딩 화면: 모델을 받는 만큼 진행률 막대를 채움
+    const loader = await import('./loader.js');
+    loader.setAssetVersion(pageData.assetVersion);
+    loader.onLoadingProgress((ratio) => {
+      const fill = document.getElementById('loading-fill');
+      if (!fill) return; // 로딩 화면이 이미 사라진 뒤(캐릭터 모델 추가 로딩)에는 무시
+      const pct = Math.round(ratio * 100);
+      fill.style.width = pct + '%';
+      document.getElementById('loading-text').textContent = pct + '%';
+    });
     const { createGame } = await import('./game3d.js');
     game = await createGame({
       container: document.getElementById('game'),
@@ -188,8 +205,10 @@ function isTyping() {
     });
     // 3D가 늦게 준비된 경우, 이미 받은 사람 목록을 반영
     if (selfId) game.setPlayers([...players.values()], selfId);
+    hideLoading();
   } catch (err) {
     console.error('3D 불러오기 실패:', err);
+    hideLoading();
     document.body.classList.add('no-3d');
     addSystemLine('3D 화면을 불러오지 못했어요. 채팅은 그대로 할 수 있어요.');
   }

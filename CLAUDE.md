@@ -77,7 +77,13 @@
 - 캐릭터 GLB 규칙: Blender에서 앞쪽은 -Y(내보내면 three.js의 +Z), 원점은 발바닥(오브젝트 위치 0,0,0 — 메쉬를 합친 뒤 위치를 메쉬에 적용해야 함), 키 1.4~1.9m, 유저 색이 입혀질 재질 이름은 "Body"로 시작 (예: Body_Dino). 나머지 재질은 고정 색
 - GLB 원본은 assets/blender/toys.blend (씬 Toy_Dino, Toy_Bear, Toy_Robot, Toy_Duck, Toy_Penguin, Playground). 내보낼 때 use_active_scene=True 필수 (안 하면 다른 씬 물체도 들어감)
 - GLB가 없거나 못 불러오면 characters.js의 기본 도형 모델로 대신 표시
-- 놀이터 맵: Blender 씬 Playground → public/models/playground.glb (약 2.7MB). 맨 위 물체 3개(Ground, Playground, Cloud)로 합쳐서 draw call을 줄임. 충돌 영역은 이름이 COL_로 시작하는 Empty(위치 + scale.x = 반지름). 바닥 표면 높이는 0 이하로 유지 (캐릭터 발이 묻히지 않게)
+- 퀄리티 기준 (2026-11-22 결정, 텍스처 없이): 캐릭터 1개 최대 3만 삼각형 / 맵 최대 50만 삼각형 / 전체 다운로드 8~10MB 목표(최대 15MB). 현재: 캐릭터 각 2.2만~2.9만(150~230KB), 맵 약 34만(3.4MB), 전체 약 4.3MB
+- 모든 GLB는 Draco 압축으로 내보냄 (export_draco_mesh_compression_enable=True). 화면에서는 public/js/loader.js의 loadGLB()로만 불러올 것 (Draco 해제기 연결 + 로딩 진행률 + ?v=버전 캐시)
+- 입체감: Cycles로 AO를 버텍스 컬러("AO")에 구워서 export_vertex_color='ACTIVE'로 내보냄. 내보낼 재질의 Base Color 노드에는 아무것도 연결하지 말 것 (연결하면 색이 안 나감)
+- 캐릭터 몸통은 기본 도형을 합친 뒤 복셀 리메시로 이음매 없이 녹여 붙이고 Decimate로 삼각형 수를 맞춤
+- 서버는 시작할 때 models 폴더로 assetVersion을 계산함 → 모델을 바꾸면 서버 재시작(pm2 restart) 필요. /models는 30일 캐시
+- game3d.js: 시작 후 FPS가 32 미만이면 해상도 → 그림자 순서로 자동으로 품질을 낮춤. 주소에 ?debug를 붙이면 window.__dbg로 renderer/scene 확인 가능
+- 놀이터 맵: Blender 씬 Playground → public/models/playground.glb (Draco, 약 3.4MB). 맨 위 물체 3개(Ground, Playground, Cloud)로 합쳐서 draw call을 줄임. 충돌 영역은 이름이 COL_로 시작하는 Empty(위치 + scale.x = 반지름). 바닥 표면 높이는 0 이하로 유지 (캐릭터 발이 묻히지 않게)
 - Playground 씬의 RenderCast 컬렉션(캐릭터 복사본 + Render_Cam, Render_Sun)은 발표용 렌더 전용. GLB로 내보낼 때는 Ground/Playground/Cloud/COL_만 선택
 - playground.glb를 못 불러오면 public/js/map.js의 코드 맵으로 대신 표시
 - 점프: 클라이언트에서 중력 계산, y를 move에 같이 보냄 (서버는 0~2로 제한). 이모티콘: 'emote' 이벤트로 번호(0~5)만 전송, DB 저장 안 함
