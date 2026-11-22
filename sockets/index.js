@@ -2,6 +2,7 @@
 const { Server } = require('socket.io');
 const pool = require('../db');
 const rooms = require('../game/rooms');
+const rides = require('../game/rides');
 
 const RECENT_CHAT_COUNT = 30;  // 입장할 때 불러올 최근 채팅 수
 const CHAT_MAX_LENGTH = 200;   // 채팅 한 줄 최대 글자 수 (DB 컬럼 길이와 같음)
@@ -30,6 +31,7 @@ function setupSockets(server, sessionMiddleware) {
     let lastChatAt = 0;
     let lastMoveAt = 0;
     let lastEmoteAt = 0;
+    let lastRideAt = 0;     // 놀이기구 타기/내리기 연타 방지
     let joining = false;    // 입장 처리 중 표시 (join을 여러 번 보내도 한 번만 처리)
 
     // 입장: 인원 확인 -> 기록 남기기 -> 현재 상태와 최근 채팅을 보내줌
@@ -93,6 +95,8 @@ function setupSockets(server, sessionMiddleware) {
           roomName: roomRows[0].name,
           players: rooms.listPlayers(roomId),
           chats: chatRows.reverse().map((c) => ({ nickname: c.nickname, content: c.content, at: c.created_at })),
+          rides: rides.getState(roomId),   // 놀이기구 좌석 상태 (누가 타고 있는지)
+          serverNow: Date.now(),           // 화면이 서버 시각에 맞춰 놀이기구를 움직이도록
         });
 
         const me = rooms.listPlayers(roomId).find((p) => p.id === socket.id);
@@ -134,6 +138,33 @@ function setupSockets(server, sessionMiddleware) {
       io.to(roomKey(roomId)).emit('emote', { id: socket.id, index: i });
     });
 
+    // 놀이기구 타기: 구역/빈자리 검사는 game/rides.js가 함. 성공하면 같은 방 모두에게 좌석 상태 전송
+    socket.on('ride-join', (data) => {
+      if (roomId === null || !data) return;
+      const now = Date.now();
+      if (now - lastRideAt < 300) return;
+      lastRideAt = now;
+      const player = rooms.getPlayer(roomId, socket.id);
+      if (!player) return;
+      const result = rides.join(roomId, socket.id, String(data.ride), player);
+      if (!result.ok) return socket.emit('ride-denied', result.reason);
+      emitRides(roomId);
+      // 미끄럼틀은 다 내려오면 서버가 자동으로 자리를 비움
+      if (data.ride === 'slide') {
+        const myRoom = roomId;
+        rides.scheduleSlideEnd(myRoom, socket.id, () => {
+          rides.leave(myRoom, socket.id);
+          emitRides(myRoom);
+        });
+      }
+    });
+
+    // 놀이기구 내리기
+    socket.on('ride-leave', () => {
+      if (roomId === null) return;
+      if (rides.leave(roomId, socket.id)) emitRides(roomId);
+    });
+
     // 이동: 너무 자주 오는 요청은 버리고 메모리의 위치만 갱신 (전송은 아래 타이머가 모아서 함)
     socket.on('move', (data) => {
       if (roomId === null || !data) return;
@@ -149,6 +180,7 @@ function setupSockets(server, sessionMiddleware) {
     socket.on('disconnect', async () => {
       if (roomId === null) return;
       const player = rooms.removePlayer(roomId, socket.id);
+      if (rides.leave(roomId, socket.id)) emitRides(roomId); // 타고 있던 자리 비우기
       io.to(roomKey(roomId)).emit('player-left', socket.id);
       if (player) io.to(roomKey(roomId)).emit('system', `${player.nickname}님이 나갔어요.`);
       try {
@@ -160,6 +192,11 @@ function setupSockets(server, sessionMiddleware) {
       }
     });
   });
+
+  // 놀이기구 좌석 상태를 같은 방 모두에게 보냄 (서버 시각 포함)
+  function emitRides(id) {
+    io.to(roomKey(id)).emit('rides', { state: rides.getState(id), serverNow: Date.now() });
+  }
 
   // 위치 전송 타이머: 1초에 약 15번, 각 방에서 움직인 사람들의 위치만 모아서 한 번에 보냄
   setInterval(() => {

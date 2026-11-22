@@ -13,6 +13,7 @@ const EMOTES = ['👋', '😂', '❤️', '😮', '👍', '🎉'];
 
 let game = null;          // 3D 게임 객체 (불러오기에 실패하면 null 그대로)
 let selfId = null;        // 내 소켓 id
+let latestRides = null;   // 마지막으로 받은 놀이기구 상태 (3D가 늦게 준비돼도 반영하려고 보관)
 const players = new Map(); // 같은 방에 있는 사람들 (소켓 id -> 정보)
 
 // ===== 서버 연결 =====
@@ -31,7 +32,18 @@ socket.on('init', (data) => {
   data.players.forEach((p) => players.set(p.id, p));
   updateCount();
   if (game) game.setPlayers(data.players, selfId);
+  latestRides = { state: data.rides, serverNow: data.serverNow };
+  if (game) game.setRides(data.rides, data.serverNow);
 });
+
+// 놀이기구 좌석 상태가 바뀜 (누가 타거나 내림)
+socket.on('rides', (data) => {
+  latestRides = data;
+  if (game) game.setRides(data.state, data.serverNow);
+});
+
+// 놀이기구를 탈 수 없을 때 (자리 없음, 너무 멂 등): 안내 문구를 잠깐 바꿔서 보여줌
+socket.on('ride-denied', (msg) => flashPrompt(msg));
 
 // 다른 사람이 들어옴 / 나감
 socket.on('player-joined', (p) => {
@@ -168,6 +180,43 @@ window.addEventListener('keydown', (e) => {
   if (n >= 1 && n <= EMOTES.length) socket.emit('emote', n - 1);
 });
 
+// ===== 놀이기구 타기 / 내리기 =====
+const ridePrompt = document.getElementById('ride-prompt');
+let promptText = null, flashTimer = null;
+function showPrompt(text) {
+  promptText = text;
+  if (flashTimer) return; // 거절 메시지를 보여 주는 중이면 잠시 기다림
+  ridePrompt.textContent = text || '';
+  ridePrompt.classList.toggle('hidden', !text);
+}
+function flashPrompt(msg) {
+  clearTimeout(flashTimer);
+  ridePrompt.textContent = msg;
+  ridePrompt.classList.remove('hidden');
+  ridePrompt.classList.add('denied');
+  flashTimer = setTimeout(() => {
+    flashTimer = null;
+    ridePrompt.classList.remove('denied');
+    showPrompt(promptText);
+  }, 1800);
+}
+
+// Shift: 근처 놀이기구 타기 / 타고 있으면 내리기. 타는 중 Space도 내리기
+window.addEventListener('keydown', (e) => {
+  if (!game || isTyping() || e.repeat) return;
+  const riding = game.isRiding();
+  if (e.key === 'Shift' || (e.code === 'Space' && riding)) {
+    const act = game.interact();
+    if (!act) return;
+    if (act.type === 'leave') {
+      socket.emit('ride-leave');
+      game.clearKey('Space'); // 내리자마자 점프하지 않게
+    } else {
+      socket.emit('ride-join', { ride: act.ride });
+    }
+  }
+});
+
 // 채팅 입력 중인지 (입력 중에는 WASD로 캐릭터가 움직이지 않게 3D 쪽에서 확인)
 function isTyping() {
   const el = document.activeElement;
@@ -202,9 +251,11 @@ function hideLoading() {
       toys: pageData.toys,
       isTyping,
       onMove: (x, z, r, y) => socket.emit('move', { x, z, r, y }),
+      onPrompt: showPrompt,
     });
     // 3D가 늦게 준비된 경우, 이미 받은 사람 목록을 반영
     if (selfId) game.setPlayers([...players.values()], selfId);
+    if (latestRides) game.setRides(latestRides.state, latestRides.serverNow);
     hideLoading();
   } catch (err) {
     console.error('3D 불러오기 실패:', err);

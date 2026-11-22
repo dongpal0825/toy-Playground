@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadGLB } from './loader.js';
 import { createMap } from './map.js';
 import { createCharacter, CHARACTER_HEIGHT } from './characters.js';
+import { createRides, RIDE_NAMES } from './rides.js';
 
 const MOVE_SPEED = 5;        // 초당 이동 거리 (m)
 const MAP_LIMIT = 28;        // 서버의 rooms.js와 같은 값
@@ -15,7 +16,7 @@ const JUMP_SPEED = 7.5;      // 점프할 때 위로 튀어 오르는 속도
 const GRAVITY = 24;          // 중력 (클수록 빨리 떨어짐)
 const EMOTE_MS = 2200;       // 이모티콘이 떠 있는 시간 (CSS 애니메이션 길이와 같음)
 
-export async function createGame({ container, me, toys, isTyping, onMove }) {
+export async function createGame({ container, me, toys, isTyping, onMove, onPrompt }) {
   // WebGL을 쓸 수 없으면 에러를 던져서 play.js가 "채팅만 모드"로 전환하게 함
   const testCanvas = document.createElement('canvas');
   if (!testCanvas.getContext('webgl2') && !testCanvas.getContext('webgl')) {
@@ -66,6 +67,9 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   // 놀이터 맵: Blender로 만든 playground.glb를 먼저 불러오고, 실패하면 코드로 만든 맵(map.js)을 사용
   const map = await loadMap();
   scene.add(map.group);
+  // 놀이기구 (맵에 RIDE_/SEAT_/ZONE_ 표시가 있을 때만 동작, 예비 맵에서는 비활성)
+  const rides = createRides(map.group);
+  if (window.__dbg) Object.assign(window.__dbg, { rides, getChars: () => characters, getSelf: () => self }); // 개발용 (?debug)
 
   const toyById = new Map(toys.map((t) => [t.id, t]));
 
@@ -175,10 +179,10 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   const right = new THREE.Vector3();
   const move = new THREE.Vector3();
   let sendTimer = 0;
-  let lastSent = { x: NaN, y: NaN, z: NaN, r: NaN };
+  let lastSent = null; // 마지막으로 서버에 보낸 위치 (null이면 아직 안 보냄 → 바로 보냄)
 
   function updateSelf(dt) {
-    if (!self) return;
+    if (!self || self.riding) return; // 놀이기구를 타는 동안에는 직접 움직이지 않음
     // 카메라가 보는 방향 기준으로 앞/오른쪽 방향 계산 (높이는 무시)
     forward.set(-Math.sin(cam.yaw), 0, -Math.cos(cam.yaw));
     right.set(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw));
@@ -216,7 +220,8 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
     if (sendTimer >= SEND_INTERVAL) {
       sendTimer = 0;
       const r = self.root.rotation.y;
-      if (Math.abs(pos.x - lastSent.x) > 0.01 || Math.abs(pos.z - lastSent.z) > 0.01 ||
+      // (주의: 처음 값을 NaN으로 두면 비교가 항상 false가 되어 위치가 영영 전송되지 않음 → null로 시작)
+      if (!lastSent || Math.abs(pos.x - lastSent.x) > 0.01 || Math.abs(pos.z - lastSent.z) > 0.01 ||
           Math.abs(pos.y - lastSent.y) > 0.01 || Math.abs(r - lastSent.r) > 0.02) {
         lastSent = { x: pos.x, y: pos.y, z: pos.z, r };
         onMove(pos.x, pos.z, r, pos.y);
@@ -244,7 +249,7 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
   function updateOthers(dt) {
     const k = 1 - Math.exp(-12 * dt);
     for (const [id, c] of characters) {
-      if (id === selfId) continue;
+      if (id === selfId || c.riding) continue; // 탄 사람은 rides.js가 좌석에 붙여 줌
       const p = c.root.position;
       const dx = c.target.x - p.x, dz = c.target.z - p.z;
       // 너무 멀리 떨어져 있으면 바로 이동 (순간이동/재접속 등)
@@ -311,15 +316,71 @@ export async function createGame({ container, me, toys, isTyping, onMove }) {
     autoQuality(dt);
     updateSelf(dt);
     updateOthers(dt);
+    rides.update(characters, dt, handleDismount);
     animateWalk(dt);
+    updatePrompt();
     updateCamera();
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
   });
 
+  // 놀이기구에서 내렸을 때: 나라면 내린 위치를 바로 서버에 알림, 다른 사람이면 목표 위치도 맞춰 둠
+  function handleDismount(id, c) {
+    const p = c.root.position, r = c.root.rotation.y;
+    if (id === selfId) {
+      lastSent = { x: p.x, y: 0, z: p.z, r };
+      onMove(p.x, p.z, r, 0);
+    } else {
+      c.target = { x: p.x, y: 0, z: p.z, r };
+    }
+  }
+
+  // 화면 아래 안내 문구: 놀이기구 근처면 "Shift: 타기", 타는 중이면 "Shift: 내리기"
+  let lastPrompt = null;
+  function updatePrompt() {
+    let text = null;
+    if (self && rides.available) {
+      const mine = rides.rideOf(selfId);
+      if (mine) {
+        if (mine.ride === 'slide') text = '슝~ 미끄럼틀 타는 중!';
+        else if (mine.ride === 'seesaw' && rides.occupancy('seesaw').used < 2) text = '반대편에 친구가 타면 움직여요 · Shift: 내리기';
+        else text = `${RIDE_NAMES[mine.ride]} 타는 중 · Shift: 내리기`;
+      } else {
+        const near = rides.nearestZone(self.root.position);
+        if (near) {
+          const o = rides.occupancy(near);
+          text = o && o.used >= o.total
+            ? `${RIDE_NAMES[near]}: 자리가 없어요 (${o.used}/${o.total})`
+            : `Shift: ${RIDE_NAMES[near]} 타기${o ? ` (${o.used}/${o.total})` : ''}`;
+        }
+      }
+    }
+    if (text !== lastPrompt) {
+      lastPrompt = text;
+      if (onPrompt) onPrompt(text);
+    }
+  }
+
   // ===== play.js가 호출하는 함수들 =====
   return {
     // 입장 직후: 방에 있는 모든 사람 만들기 (나 포함)
+    // 서버가 보낸 놀이기구 좌석 상태 반영
+    setRides(state, serverNow) {
+      rides.setState(state, serverNow);
+    },
+    // Shift를 눌렀을 때 할 일: 타고 있으면 내리기, 놀이기구 근처면 타기
+    interact() {
+      if (!self || !rides.available) return null;
+      if (rides.rideOf(selfId)) return { type: 'leave' };
+      const near = rides.nearestZone(self.root.position);
+      return near ? { type: 'join', ride: near } : null;
+    },
+    isRiding() {
+      return !!(rides.available && rides.rideOf(selfId));
+    },
+    clearKey(code) {
+      keys.delete(code);
+    },
     setPlayers(list, myId) {
       selfId = myId;
       for (const p of list) ensureCharacter(p);

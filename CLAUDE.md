@@ -87,6 +87,8 @@
 - Playground 씬의 RenderCast 컬렉션(캐릭터 복사본 + Render_Cam, Render_Sun)은 발표용 렌더 전용. GLB로 내보낼 때는 Ground/Playground/Cloud/COL_만 선택
 - playground.glb를 못 불러오면 public/js/map.js의 코드 맵으로 대신 표시
 - 점프: 클라이언트에서 중력 계산, y를 move에 같이 보냄 (서버는 0~2로 제한). 이모티콘: 'emote' 이벤트로 번호(0~5)만 전송, DB 저장 안 함
+- 놀이기구: playground.glb 안 이름 규칙 RIDE_(움직이는 부품, 원점=회전축) / SEAT_(좌석, RIDE의 자식, Blender -Y가 앞) / PATH_slide_00..32 / ZONE_(탈 수 있는 구역, scale=반지름) / EXIT_(내린 뒤 위치). 좌석은 서버 game/rides.js가 관리(미끄럼틀1·그네2·시소2·뺑뺑이4), 움직임은 public/js/rides.js가 서버 시각(serverNow 오프셋) 기준으로 계산. 구역 좌표와 SLIDE_MS/MERRY_SPEED는 서버와 화면 양쪽 값이 같아야 함
+- 테스트 봇 놀이기구 모드: RIDE=seesaw node tools/test-bot.js 1 2 (slide/swing/seesaw/merry)
 - 위치 동기화: 클라이언트 15Hz 전송 → 서버 rooms.js 메모리 갱신 → 66ms 타이머로 움직인 사람만 묶어서 'moves' 전송
 - Windows에서 mysql 클라이언트로 SQL을 실행할 때 한글이 깨지지 않게 schema.sql 맨 위에 SET NAMES utf8mb4 유지
 - 세션은 메모리 저장(MemoryStore)이라 서버를 재시작하면 다시 로그인해야 함

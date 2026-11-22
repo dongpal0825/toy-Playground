@@ -143,3 +143,15 @@
 .loading-bar { height: 18px; border: 3px solid #2b2b3a; border-radius: 10px; overflow: hidden; background: #f1f1f5; }
 #loading-fill { height: 100%; width: 0; background: repeating-linear-gradient(45deg, #ffd23f 0 12px, #ffbf00 12px 24px); transition: width 0.2s; }
 #loading-text { margin-top: 8px; color: #666; font-size: 14px; }
+
+/* 놀이기구 안내 문구 (이모티콘 버튼 위) */
+#ride-prompt {
+  position: fixed; left: 50%; bottom: 120px; z-index: 10;
+  transform: translateX(-50%);
+  padding: 8px 16px; border-radius: 999px;
+  background: rgba(20, 22, 40, 0.75); color: #fff;
+  font-weight: 800; font-size: 15px; white-space: nowrap;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+}
+#ride-prompt.denied { background: rgba(230, 57, 70, 0.9); }

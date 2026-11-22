@@ -1,5 +1,6 @@
 // tools/test-bot.js: 혼자서 멀티플레이를 테스트하기 위한 봇. 가짜 유저로 로그인해서 원을 그리며 걷고 가끔 채팅함
 // 사용법: node tools/test-bot.js [서버번호] [봇 수] [주소]
+//   놀이기구 테스트: RIDE=seesaw node tools/test-bot.js 1 2   (slide / swing / seesaw / merry)
 //   예) node tools/test-bot.js 1 2            -> 로컬 서버 1에 봇 2명
 //   예) node tools/test-bot.js 1 1 http://EC2주소:3000
 const { io } = require('socket.io-client');
@@ -7,6 +8,9 @@ const { io } = require('socket.io-client');
 const ROOM_ID = Number(process.argv[2] || 1);
 const BOT_COUNT = Number(process.argv[3] || 1);
 const BASE = process.argv[4] || 'http://localhost:3000';
+const RIDE = process.env.RIDE || '';
+// 놀이기구 구역 중심 (game/rides.js와 같음)
+const ZONES = { slide: { x: 9, z: -9.6 }, swing: { x: 10.5, z: 6.5 }, seesaw: { x: -10, z: 6 }, merry: { x: 0, z: -11 } };
 const LINES = ['안녕하세요!', '여기 미끄럼틀 있어요', '같이 놀아요~', '그네 타러 갈래요', '삑삑!'];
 
 // 봇 1명 실행: 회원가입(이미 있으면 로그인) -> 세션 쿠키로 socket.io 접속 -> 걷기/채팅
@@ -33,8 +37,23 @@ async function runBot(n) {
   socket.on('fatal', (msg) => { console.log(`[${username}] 끊김: ${msg}`); process.exit(1); });
   socket.on('chat', (c) => console.log(`[${username}이 본 채팅] ${c.nickname}: ${c.content}`));
 
+  socket.on('ride-denied', (msg) => console.log(`[${username}] 탑승 거절: ${msg}`));
   socket.on('init', (data) => {
     console.log(`[${username}] ${data.roomName} 입장, 현재 ${data.players.length}명`);
+    // 놀이기구 모드: 구역으로 이동해서 타고, 좌석 상태를 출력 (미끄럼틀은 다 내려오면 다시 탐)
+    if (RIDE) {
+      const z = ZONES[RIDE];
+      socket.emit('move', { x: z.x + (n - 1) * 0.3, y: 0, z: z.z, r: 0 });
+      const ride = () => socket.emit('ride-join', { ride: RIDE });
+      setTimeout(ride, 300 + n * 150);
+      socket.on('rides', (d) => {
+        const seats = d.state[RIDE].seats.map((s) => (s ? (s.id === socket.id ? '나' : '다른 봇') : '빈자리'));
+        console.log(`[${username}] ${RIDE} 좌석: ${seats.join(', ')}`);
+        if (RIDE === 'slide' && !d.state.slide.seats.some((s) => s && s.id === socket.id)) setTimeout(ride, 1500);
+      });
+      setInterval(() => socket.emit('chat', LINES[Math.floor(Math.random() * LINES.length)]), 7000 + n * 1000);
+      return;
+    }
     // 놀이터 가운데를 중심으로 원을 그리며 걷기 (1초에 15번 위치 전송)
     let t = n * 2;
     let jumpT = -1; // 점프 중이면 0~1, 아니면 -1

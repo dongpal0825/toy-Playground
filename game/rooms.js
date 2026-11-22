@@ -31,6 +31,11 @@ function listPlayers(roomId) {
   return [...rooms.get(roomId).entries()].map(([id, p]) => publicInfo(id, p));
 }
 
+// 플레이어 한 명의 정보 (놀이기구 구역 판정 등에 사용)
+function getPlayer(roomId, socketId) {
+  return rooms.get(roomId).get(socketId) || null;
+}
+
 // 서버 내부용: 방에 있는 플레이어의 전체 정보 (종료 시 DB 저장에 사용)
 function listPlayersRaw(roomId) {
   return [...rooms.get(roomId).values()];
@@ -89,6 +94,6 @@ function round2(v) {
 }
 
 module.exports = {
-  ROOM_IDS, MAP_LIMIT, isValidRoom, addPlayer, removePlayer, listPlayers, listPlayersRaw,
+  ROOM_IDS, MAP_LIMIT, isValidRoom, addPlayer, removePlayer, listPlayers, listPlayersRaw, getPlayer,
   publicInfo, updatePosition, takeMoved, getCounts, findSocketByUser,
 };
