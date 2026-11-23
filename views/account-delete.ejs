@@ -1,0 +1,30 @@
+<%# account-delete.ejs: 회원 탈퇴 확인 화면 (비밀번호를 다시 입력해야 탈퇴됨) %>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <%- include('partials/head', { title: '회원 탈퇴' }) %>
+</head>
+<body class="main-page">
+  <main class="card">
+    <h2 style="margin-top: 0">회원 탈퇴</h2>
+    <p><strong><%= user.nickname %></strong>(<%= user.username %>)님, 정말 탈퇴할까요?</p>
+    <ul class="warn-list">
+      <li>계정 정보가 삭제되고 다시 되돌릴 수 없어요.</li>
+      <li>내가 쓴 채팅과 접속 기록도 함께 삭제돼요.</li>
+      <li>같은 아이디로는 다시 가입할 수 있어요.</li>
+    </ul>
+
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+    <form class="form" method="post" action="/account/delete" onsubmit="return confirm('정말 탈퇴할까요? 되돌릴 수 없어요.')">
+      <label>비밀번호 확인
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn danger">탈퇴하기</button>
+      <a class="btn ghost back-link" href="/servers">취소하고 돌아가기</a>
+    </form>
+  </main>
+</body>
+</html>

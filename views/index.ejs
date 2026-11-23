@@ -26,6 +26,9 @@
     <% if (error) { %>
       <p class="error"><%= error %></p>
     <% } %>
+    <% if (notice) { %>
+      <p class="notice-ok"><%= notice %></p>
+    <% } %>
 
     <!-- 로그인 폼 -->
     <form id="form-login" class="form <%= tab === 'login' ? '' : 'hidden' %>" method="post" action="/login">

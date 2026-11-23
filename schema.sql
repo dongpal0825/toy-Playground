@@ -1,5 +1,6 @@
 -- schema.sql: 장난감 놀이터 DB의 테이블을 만들고 기본 데이터(장난감 5종, 서버 3개)를 넣는 파일
 -- 실행 방법: mysql -u root -p < schema.sql   (MariaDB / MySQL 8 모두 동작)
+-- 관리자 계정 만들기: node tools/create-admin.js admin  (비밀번호는 실행할 때 입력)
 
 -- 이 파일을 UTF-8로 읽게 함 (Windows에서 실행할 때 한글이 깨지는 문제 방지)
 SET NAMES utf8mb4;
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   nickname      VARCHAR(20)  NOT NULL,          -- 캐릭터 머리 위에 보이는 이름
   toy_id        INT          NOT NULL DEFAULT 1,
   color         VARCHAR(7)   NOT NULL DEFAULT '#4caf50', -- 캐릭터 색 (#RRGGBB)
+  is_admin      TINYINT(1)   NOT NULL DEFAULT 0,  -- 관리자면 1 (관리자 페이지: 사용자 목록, 강제 탈퇴, DB 구조)
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_users_toy FOREIGN KEY (toy_id) REFERENCES toys(id)
 );

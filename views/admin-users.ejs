@@ -1,0 +1,60 @@
+<%# admin-users.ejs: 관리자 - 사용자 목록 화면. 가입한 모든 유저와 활동 정보, 강제 탈퇴 버튼 %>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <%- include('partials/head', { title: '관리자 · 사용자 관리' }) %>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav', { active: 'users' }) %>
+
+  <main class="admin-main">
+    <% if (msg) { %><p class="notice-ok"><%= msg %></p><% } %>
+
+    <!-- 요약 숫자 -->
+    <section class="stat-row">
+      <div class="stat"><b><%= stats.users %></b><span>가입한 사용자</span></div>
+      <div class="stat"><b><%= stats.online %></b><span>지금 접속 중</span></div>
+      <div class="stat"><b><%= stats.chats %></b><span>저장된 채팅</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>사용자 목록 <small>users 테이블 + toys JOIN + chat_messages / play_logs 집계</small></h2>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>id</th><th>아이디</th><th>닉네임</th><th>캐릭터</th><th>권한</th>
+              <th>가입일</th><th>채팅 수</th><th>접속 횟수</th><th>마지막 접속</th><th>상태</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% users.forEach((u) => { %>
+              <tr>
+                <td><%= u.id %></td>
+                <td><%= u.username %></td>
+                <td><%= u.nickname %></td>
+                <td><span class="color-dot" style="background: <%= u.color %>"></span><%= u.toy %></td>
+                <td><% if (u.is_admin) { %><span class="badge admin">관리자</span><% } else { %>일반<% } %></td>
+                <td><%= u.created_at.toLocaleString('ko-KR', { hour12: false }) %></td>
+                <td class="num"><%= u.chats %></td>
+                <td class="num"><%= u.visits %></td>
+                <td><%= u.last_seen ? u.last_seen.toLocaleString('ko-KR', { hour12: false }) : '-' %></td>
+                <td><% if (u.online) { %><span class="badge online">서버 <%= u.online %> 접속 중</span><% } else { %><span class="muted">오프라인</span><% } %></td>
+                <td>
+                  <% if (!u.is_admin) { %>
+                    <form method="post" action="/admin/users/<%= u.id %>/delete"
+                          onsubmit="return confirm('<%= u.username %> 계정을 강제 탈퇴시킬까요?\n채팅과 접속 기록도 함께 삭제되고 되돌릴 수 없어요.')">
+                      <button class="btn small danger">강제 탈퇴</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

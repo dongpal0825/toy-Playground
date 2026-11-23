@@ -10,13 +10,14 @@ const USERNAME_RULE = /^[a-zA-Z0-9_]{3,20}$/;
 
 // 메인 화면에 에러 메시지와 함께 다시 보여주는 함수
 function renderMain(res, { tab = 'login', error = null, form = {} } = {}) {
-  res.status(error ? 400 : 200).render('index', { tab, error, form });
+  res.status(error ? 400 : 200).render('index', { tab, error, form, notice: null });
 }
 
 // 메인 화면: 이미 로그인했으면 서버 선택 화면으로 이동
 router.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/servers');
-  renderMain(res);
+  // 탈퇴하고 돌아온 경우 안내 문구 표시
+  res.render('index', { tab: 'login', error: null, form: {}, notice: req.query.bye ? '탈퇴가 완료됐어요. 그동안 놀아 줘서 고마워요!' : null });
 });
 
 // 회원가입: 입력 검사 -> 아이디 중복 확인 -> 비밀번호 해시 저장 -> 바로 로그인
@@ -67,7 +68,7 @@ router.post('/login', async (req, res, next) => {
     const password = req.body.password || '';
 
     const [rows] = await pool.query(
-      'SELECT id, username, password_hash, nickname, toy_id, color FROM users WHERE username = ?',
+      'SELECT id, username, password_hash, nickname, toy_id, color, is_admin FROM users WHERE username = ?',
       [username]
     );
     const found = rows[0];
@@ -99,6 +100,7 @@ function loginSession(req, u) {
     nickname: u.nickname,
     toyId: u.toy_id,
     color: u.color,
+    isAdmin: !!u.is_admin, // 관리자 페이지 접근 권한
   };
 }
 

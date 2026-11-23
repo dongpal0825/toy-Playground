@@ -33,21 +33,26 @@ db.js               MariaDB 연결 풀
 schema.sql          테이블 생성 + 기본 데이터
 routes/auth.js      메인, 회원가입, 로그인, 로그아웃
 routes/lobby.js     서버 선택, 입장, 놀이터 화면, 인원 API
+routes/account.js   회원 탈퇴 (비밀번호 확인 후 계정 + 채팅 + 접속 기록 삭제)
+routes/admin.js     관리자 페이지: 사용자 목록, 강제 탈퇴, DB 구조(ERD) 보기
+lib/accounts.js     계정 삭제 공통 처리 (접속 끊기, 남은 세션 막기), is_admin 컬럼 자동 추가
 sockets/index.js    실시간 기능 (입장/퇴장, 채팅 저장, 위치 동기화)
 game/rooms.js       서버 1~3의 접속자와 위치 (메모리)
 game/rides.js       놀이기구 좌석 관리 (누가 어느 자리에 언제 탔는지, 메모리)
-views/              EJS 화면 (index, servers, play)
+views/              EJS 화면 (index, servers, play, account-delete, admin-users, admin-db)
 public/js/play.js   놀이터 화면: 서버 연결 + 채팅 (3D가 실패해도 채팅은 동작)
 public/js/game3d.js 3D 장면, 이동, 카메라, 닉네임/말풍선
 public/js/map.js    예비 놀이터 맵 (playground.glb를 못 불러올 때 코드로 만드는 맵)
 public/js/characters.js  캐릭터 모델 불러오기 + 색 바꾸기
 public/js/rides.js  놀이기구 움직임 (서버 시각 기준으로 모든 화면이 같은 동작 계산)
+public/js/admin-erd.js  관리자 DB 구조 화면에서 테이블 사이 관계선(1:N) 그리기
 public/js/loader.js 모델 불러오기 공통 (Draco 압축 해제, 로딩 진행률, 캐시용 버전 번호)
 public/models/      캐릭터 GLB 5종 + 놀이터 맵 playground.glb
 public/images/logo.png  메인 화면 로고 (제미나이로 만든 시안을 배경 투명 처리)
 assets/blender/     Blender 원본 (캐릭터 5종 + 놀이터 씬)
 assets/renders/     Blender 렌더 이미지
-tools/test-bot.js   혼자서 멀티플레이를 테스트하는 봇
+tools/test-bot.js   혼자서 멀티플레이를 테스트하는 봇 (RIDE=tour: 시연용으로 돌아다니며 놀이기구 타기)
+tools/create-admin.js  관리자 계정 만들기 (비밀번호는 실행할 때 입력, 코드에 남기지 않음)
 ```
 
 ## DB 설계 (ERD)
@@ -73,6 +78,7 @@ erDiagram
         VARCHAR nickname "머리 위 이름"
         INT toy_id FK
         VARCHAR color "캐릭터 색 #RRGGBB"
+        TINYINT is_admin "관리자면 1"
         DATETIME created_at
     }
     rooms {

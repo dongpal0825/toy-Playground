@@ -3,6 +3,7 @@ const { Server } = require('socket.io');
 const pool = require('../db');
 const rooms = require('../game/rooms');
 const rides = require('../game/rides');
+const accounts = require('../lib/accounts');
 
 const RECENT_CHAT_COUNT = 30;  // 입장할 때 불러올 최근 채팅 수
 const CHAT_MAX_LENGTH = 200;   // 채팅 한 줄 최대 글자 수 (DB 컬럼 길이와 같음)
@@ -14,6 +15,7 @@ const EMOTE_COOLDOWN_MS = 800; // 이모티콘 도배 방지
 
 function setupSockets(server, sessionMiddleware) {
   const io = new Server(server);
+  accounts.setIo(io); // 계정 삭제 시 접속 중인 사람을 끊을 수 있게 넘겨 줌
 
   // 로그인 세션을 socket.io에서도 읽을 수 있게 연결 (socket.request.session)
   io.engine.use(sessionMiddleware);
@@ -21,7 +23,7 @@ function setupSockets(server, sessionMiddleware) {
   io.on('connection', (socket) => {
     const user = socket.request.session && socket.request.session.user;
     // 로그인하지 않은 연결은 바로 끊음
-    if (!user) {
+    if (!user || accounts.isDeleted(user.id)) {
       socket.emit('fatal', '로그인이 필요해요.');
       return socket.disconnect(true);
     }

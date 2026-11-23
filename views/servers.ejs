@@ -8,7 +8,11 @@
   <main class="card wide">
     <div class="topbar">
       <p><strong><%= user.nickname %></strong>님, 어서 오세요!</p>
-      <form method="post" action="/logout"><button class="btn small ghost">로그아웃</button></form>
+      <div class="topbar-actions">
+        <%# 관리자 계정에만 보이는 버튼 %>
+        <% if (user.isAdmin) { %><a class="btn small admin-btn" href="/admin">관리자</a><% } %>
+        <form method="post" action="/logout"><button class="btn small ghost">로그아웃</button></form>
+      </div>
     </div>
 
     <% if (error) { %>
@@ -51,6 +55,7 @@
         <% }) %>
       </ul>
     </form>
+    <p class="account-link"><a href="/account/delete">회원 탈퇴</a></p>
   </main>
 
   <script>

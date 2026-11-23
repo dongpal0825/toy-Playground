@@ -1,0 +1,10 @@
+<%# partials/admin-nav.ejs: 관리자 페이지 위쪽 메뉴 (사용자 관리 / DB 구조 / 서버 선택으로) %>
+<header class="admin-nav">
+  <a class="admin-logo" href="/admin"><img src="/images/logo.png" alt="Toy Playground"><span>관리자</span></a>
+  <nav>
+    <a href="/admin" class="<%= active === 'users' ? 'active' : '' %>">사용자 관리</a>
+    <a href="/admin/db" class="<%= active === 'db' ? 'active' : '' %>">DB 구조 (ERD)</a>
+    <a href="/servers">서버 선택으로</a>
+  </nav>
+  <span class="admin-who"><%= user.nickname %> (<%= user.username %>)</span>
+</header>

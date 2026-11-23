@@ -7,6 +7,7 @@ const http = require('http');
 const express = require('express');
 const session = require('express-session');
 const pool = require('./db');
+const accounts = require('./lib/accounts');
 
 const app = express();
 
@@ -47,7 +48,9 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 
 // 모든 화면에서 로그인한 유저 정보를 user 변수로 쓸 수 있게 함
+// (탈퇴한 계정의 세션이 다른 탭/기기에 남아 있으면 여기서 로그아웃 처리)
 app.use((req, res, next) => {
+  if (req.session.user && accounts.isDeleted(req.session.user.id)) delete req.session.user;
   res.locals.user = req.session.user || null;
   next();
 });
@@ -55,6 +58,8 @@ app.use((req, res, next) => {
 // 화면 라우트 연결
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/lobby'));
+app.use('/', require('./routes/account'));  // 회원 탈퇴
+app.use('/admin', require('./routes/admin')); // 관리자 페이지
 
 // 없는 주소: 화면 주소면 메인으로 돌려보내고, 파일(.glb, .js 등)이면 404
 app.use((req, res) => {
@@ -80,6 +85,7 @@ server.listen(PORT, async () => {
   try {
     await pool.query('SELECT 1');
     console.log('DB 연결 성공');
+    await accounts.ensureSchema();
     await setupSockets.closeDanglingLogs();
   } catch (e) {
     console.error('DB 연결 실패:', e.message);

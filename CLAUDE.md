@@ -38,7 +38,7 @@
 7. 꾸미기(맵 장식, 이모티콘, 점프 등): 시간이 남을 때만
 
 ## DB 설계 (ERD 초안)
-- users: id PK, username UNIQUE, password_hash, nickname, toy_id FK->toys, color, created_at
+- users: id PK, username UNIQUE, password_hash, nickname, toy_id FK->toys, color, is_admin, created_at
 - toys: id PK, name, model_file, description
 - rooms: id PK, name (서버 1, 서버 2, 서버 3), max_players
 - chat_messages: id PK, room_id FK->rooms, user_id FK->users, content, created_at
@@ -92,6 +92,8 @@
 - 위치 동기화: 클라이언트 15Hz 전송 → 서버 rooms.js 메모리 갱신 → 66ms 타이머로 움직인 사람만 묶어서 'moves' 전송
 - Windows에서 mysql 클라이언트로 SQL을 실행할 때 한글이 깨지지 않게 schema.sql 맨 위에 SET NAMES utf8mb4 유지
 - 세션은 메모리 저장(MemoryStore)이라 서버를 재시작하면 다시 로그인해야 함
+- 관리자: users.is_admin=1 (서버 시작 시 lib/accounts.js ensureSchema가 컬럼 자동 추가). 계정은 node tools/create-admin.js admin 으로 생성(비밀번호는 표준입력, 저장소에 절대 쓰지 않음). /admin 사용자 목록·강제 탈퇴, /admin/db ERD(information_schema 실시간). 관리자 계정은 탈퇴/강제 탈퇴 불가
+- 탈퇴: lib/accounts.deleteUser → 접속 중이면 끊고 DELETE users (채팅·접속 기록은 FK ON DELETE CASCADE). 탈퇴한 id는 메모리 Set으로 남은 세션 차단
 
 ## Claude Code 작업 방식
 - 위 우선순위 순서대로 진행하고, 큰 설계 변경이 필요하면 먼저 물어볼 것

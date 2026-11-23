@@ -1,0 +1,99 @@
+<%# admin-db.ejs: 관리자 - DB 구조(ERD) 화면. 실제 DB에서 읽은 테이블/컬럼/관계를 그림으로 보여 줌 (발표용) %>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <%- include('partials/head', { title: '관리자 · DB 구조' }) %>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav', { active: 'db' }) %>
+
+  <main class="admin-main">
+    <section class="panel">
+      <h2>DB 구조 (ERD)
+        <small>데이터베이스 toy_playground · 테이블 <%= tables.length %>개 · 관계 <%= relations.length %>개 · information_schema에서 실시간으로 읽음</small>
+      </h2>
+      <div class="erd-legend">
+        <span><span class="key pk">PK</span> 기본 키 (행마다 다른 번호)</span>
+        <span><span class="key fk">FK</span> 외래 키 (다른 테이블의 id를 가리킴)</span>
+        <span><span class="key uq">UQ</span> 중복 불가</span>
+        <span><b class="one">1</b> ─── <b class="many">N</b> 하나 대 여러 개</span>
+        <label class="toggle"><input type="checkbox" id="show-info" checked> 컬럼 설명 보기</label>
+      </div>
+
+      <!-- ERD 그림: 테이블 상자들을 놓고, 그 위에 SVG로 관계선을 그림 -->
+      <div class="erd-wrap" id="erd">
+        <svg class="erd-lines" id="erd-lines"></svg>
+        <div class="erd-grid">
+          <% tables.forEach((t) => { %>
+            <div class="erd-table tbl-<%= t.name %>" data-table="<%= t.name %>">
+              <div class="erd-head">
+                <span class="erd-name"><%= t.name %></span>
+                <span class="erd-count"><%= t.rows %>행</span>
+              </div>
+              <div class="erd-desc"><%= t.info %></div>
+              <% t.columns.forEach((c) => { %>
+                <div class="erd-col" data-col="<%= t.name %>.<%= c.name %>">
+                  <span class="keys">
+                    <% if (c.keyType === 'PRI') { %><span class="key pk">PK</span><% } %>
+                    <% if (c.fk) { %><span class="key fk">FK</span><% } %>
+                    <% if (c.keyType === 'UNI') { %><span class="key uq">UQ</span><% } %>
+                  </span>
+                  <span class="col-main">
+                    <span class="col-name"><%= c.name %></span>
+                    <span class="col-info"><%= c.info %></span>
+                  </span>
+                  <span class="col-type"><%= c.type %></span>
+                </div>
+              <% }) %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+
+    <!-- 관계를 말로 설명 (발표할 때 읽기 좋게) -->
+    <section class="panel">
+      <h2>테이블 관계 <small>줄에 마우스를 올리면 그림에서 해당 선이 강조돼요</small></h2>
+      <ul class="rel-list">
+        <% relations.forEach((r, i) => { %>
+          <li data-rel="<%= i %>">
+            <span class="rel-pair"><b><%= r.refT %></b> <b class="one">1</b> : <b class="many">N</b> <b><%= r.t %></b></span>
+            <span class="rel-key"><%= r.t %>.<%= r.col %> → <%= r.refT %>.<%= r.refCol %></span>
+            <span class="rel-info"><%= r.info %></span>
+            <% if (r.onDelete === 'CASCADE') { %><span class="badge cascade" title="부모 행을 지우면 이 테이블의 연결된 행도 자동으로 지워짐">탈퇴 시 같이 삭제 (CASCADE)</span><% } %>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <!-- 테이블별 실제 데이터 (최근 5행) -->
+    <section class="panel">
+      <h2>실제 데이터 미리보기 <small>테이블마다 최근 5행 · 비밀번호 해시는 앞부분만 표시</small></h2>
+      <% tables.forEach((t) => { %>
+        <details class="sample">
+          <summary><b><%= t.name %></b> <span class="muted">(전체 <%= t.rows %>행)</span></summary>
+          <% if (t.sample.length === 0) { %>
+            <p class="muted">아직 데이터가 없어요.</p>
+          <% } else { %>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><% Object.keys(t.sample[0]).forEach((k) => { %><th><%= k %></th><% }) %></tr></thead>
+                <tbody>
+                  <% t.sample.forEach((row) => { %>
+                    <tr><% Object.values(row).forEach((v) => { %><td><%= v === null ? 'NULL' : v %></td><% }) %></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </details>
+      <% }) %>
+    </section>
+  </main>
+
+  <%# 관계 데이터를 화면 스크립트로 넘김 (<를 바꿔서 script 태그가 깨지지 않게) %>
+  <script type="application/json" id="rel-data"><%- JSON.stringify(relations).replace(/</g, '\\u003c') %></script>
+  <script src="/js/admin-erd.js"></script>
+</body>
+</html>
