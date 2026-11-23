@@ -75,13 +75,14 @@
 .erd-lines .rel.hot { opacity: 1; }
 .erd-lines .rel.hot path { stroke: #ff9f1c; stroke-width: 4; }
 
-/* 테이블 배치: 부모(toys) -> users -> 자식(chat_messages, play_logs) <- 부모(rooms) 순서로 놓아 선이 겹치지 않게 */
+/* 테이블 배치: 부모(toys) -> users -> 자식(chat_messages, play_logs, posts) <- 부모(rooms) 순서로 놓아 선이 겹치지 않게 */
 .erd-grid {
   display: grid; grid-template-columns: repeat(4, minmax(230px, 1fr));
   column-gap: 80px; row-gap: 28px; align-items: start; min-width: 1100px;
 }
-.tbl-toys { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-.tbl-users { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.tbl-toys { grid-column: 1; grid-row: 1 / span 3; align-self: center; }
+.tbl-users { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+.tbl-posts { grid-column: 3; grid-row: 3; }
 .tbl-chat_messages { grid-column: 3; grid-row: 1; }
 .tbl-play_logs { grid-column: 3; grid-row: 2; }
 .tbl-rooms { grid-column: 4; grid-row: 1 / span 2; align-self: center; }

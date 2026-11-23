@@ -43,8 +43,9 @@
 - rooms: id PK, name (서버 1, 서버 2, 서버 3), max_players
 - chat_messages: id PK, room_id FK->rooms, user_id FK->users, content, created_at
 - play_logs: id PK, user_id FK->users, room_id FK->rooms, joined_at, left_at, last_x, last_z
+- posts: id PK, user_id FK->users (ON DELETE CASCADE), title, content, created_at, updated_at  (놀이터 게시판, 서버 1~3 공통)
 
-관계: toys 1 - N users / users 1 - N chat_messages / rooms 1 - N chat_messages / users 1 - N play_logs / rooms 1 - N play_logs
+관계: toys 1 - N users / users 1 - N chat_messages / rooms 1 - N chat_messages / users 1 - N play_logs / rooms 1 - N play_logs / users 1 - N posts
 
 ## 구현 원칙
 - 코드를 작성할 때 "이 코드가 어디에 쓰이는지"를 한국어 주석으로 간단히 남길 것 (파일 맨 위에 파일 역할 한 줄, 함수/주요 블록마다 용도 한 줄). 발표에서 내가 직접 설명해야 하므로 이해하기 쉽게 쓸 것
@@ -93,6 +94,7 @@
 - Windows에서 mysql 클라이언트로 SQL을 실행할 때 한글이 깨지지 않게 schema.sql 맨 위에 SET NAMES utf8mb4 유지
 - 세션은 메모리 저장(MemoryStore)이라 서버를 재시작하면 다시 로그인해야 함
 - 관리자: users.is_admin=1 (서버 시작 시 lib/accounts.js ensureSchema가 컬럼 자동 추가). 계정은 node tools/create-admin.js admin 으로 생성(비밀번호는 표준입력, 저장소에 절대 쓰지 않음). /admin 사용자 목록·강제 탈퇴, /admin/db ERD(information_schema 실시간). 관리자 계정은 탈퇴/강제 탈퇴 불가
+- 게시판: Blender 씬 Prop_Board → public/models/board.glb (playground.glb와 별도). 위치/방향/충돌/Shift 구역은 game3d.js의 BOARD 상수(게임 좌표 7.5, 15, 앞면 -x). API routes/posts.js (수정은 본인만, 삭제는 본인+관리자, 새 글 10초 제한), 변화는 io.emit('board')로 모든 방에 알림. posts 테이블은 ensureSchema가 없으면 만듦
 - 탈퇴: lib/accounts.deleteUser → 접속 중이면 끊고 DELETE users (채팅·접속 기록은 FK ON DELETE CASCADE). 탈퇴한 id는 메모리 Set으로 남은 세션 차단
 
 ## Claude Code 작업 방식

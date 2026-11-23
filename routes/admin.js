@@ -22,6 +22,7 @@ router.get('/', async (req, res, next) => {
       SELECT u.id, u.username, u.nickname, u.color, u.is_admin, u.created_at, t.name AS toy,
              (SELECT COUNT(*) FROM chat_messages c WHERE c.user_id = u.id) AS chats,
              (SELECT COUNT(*) FROM play_logs p WHERE p.user_id = u.id)     AS visits,
+             (SELECT COUNT(*) FROM posts b WHERE b.user_id = u.id)         AS posts,
              (SELECT MAX(p.joined_at) FROM play_logs p WHERE p.user_id = u.id) AS last_seen
         FROM users u JOIN toys t ON t.id = u.toy_id
        ORDER BY u.id`);
@@ -64,6 +65,7 @@ const TABLE_INFO = {
   rooms: '서버(방) 3개. 같은 서버 사람끼리만 채팅/이동이 보임',
   chat_messages: '채팅 기록. 입장하면 최근 30개를 불러옴',
   play_logs: '접속/퇴장 기록 + 나갈 때의 마지막 위치',
+  posts: '놀이터 게시판 글. 게시판 오브젝트에서 Shift로 열어서 씀',
 };
 const COLUMN_INFO = {
   'toys.name': '캐릭터 이름', 'toys.model_file': '3D 모델(GLB) 파일 이름', 'toys.description': '설명',
@@ -74,6 +76,8 @@ const COLUMN_INFO = {
   'chat_messages.room_id': '채팅한 서버', 'chat_messages.user_id': '채팅한 사람', 'chat_messages.content': '채팅 내용 (최대 200자)',
   'chat_messages.created_at': '보낸 시각',
   'play_logs.user_id': '접속한 사람', 'play_logs.room_id': '접속한 서버', 'play_logs.joined_at': '입장 시각',
+  'posts.user_id': '글쓴이', 'posts.title': '제목 (최대 50자)', 'posts.content': '내용 (최대 1000자)',
+  'posts.created_at': '쓴 시각', 'posts.updated_at': '수정한 시각 (안 고쳤으면 NULL)',
   'play_logs.left_at': '퇴장 시각 (접속 중이면 NULL)', 'play_logs.last_x': '나갈 때 위치 x', 'play_logs.last_z': '나갈 때 위치 z',
 };
 // 관계 설명 (FK마다 한 줄)
@@ -83,8 +87,9 @@ const RELATION_INFO = {
   'chat_messages.room_id': '서버 하나에 채팅이 여러 개 쌓여요',
   'play_logs.user_id': '유저 한 명이 여러 번 접속해요',
   'play_logs.room_id': '서버 하나에 접속 기록이 여러 개 쌓여요',
+  'posts.user_id': '유저 한 명이 게시글을 여러 개 써요',
 };
-const TABLE_ORDER = ['toys', 'users', 'chat_messages', 'play_logs', 'rooms']; // 화면 배치 순서
+const TABLE_ORDER = ['toys', 'users', 'chat_messages', 'play_logs', 'posts', 'rooms']; // 화면 배치 순서
 
 // DB의 실제 구조를 information_schema(MySQL/MariaDB가 가진 "DB 설명서" 테이블)에서 읽어서 보여 줌
 // -> schema.sql을 바꾸면 이 페이지도 자동으로 바뀜

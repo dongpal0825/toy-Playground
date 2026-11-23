@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS play_logs (
   CONSTRAINT fk_log_room FOREIGN KEY (room_id) REFERENCES rooms(id)
 );
 
+-- 놀이터 게시판 글 (놀이터의 게시판 오브젝트에서 Shift로 열어서 씀. 서버 1~3 모두 같은 게시판)
+CREATE TABLE IF NOT EXISTS posts (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT           NOT NULL,          -- 글쓴이 (탈퇴하면 글도 같이 삭제)
+  title      VARCHAR(50)   NOT NULL,
+  content    VARCHAR(1000) NOT NULL,
+  created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME      NULL,              -- 수정한 시각 (수정 안 했으면 NULL)
+  CONSTRAINT fk_post_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_post_time (created_at)
+);
+
 -- 기본 데이터: 장난감 5종 (id를 고정해서, 다시 실행하면 중복 대신 최신 내용으로 덮어씀)
 INSERT INTO toys (id, name, model_file, description) VALUES
   (1, '공룡',     'dino.glb',    '꼬리를 흔드는 작은 공룡'),

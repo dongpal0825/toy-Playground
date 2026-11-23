@@ -4,6 +4,7 @@ const pool = require('../db');
 const rooms = require('../game/rooms');
 const rides = require('../game/rides');
 const accounts = require('../lib/accounts');
+const realtime = require('../lib/realtime');
 
 const RECENT_CHAT_COUNT = 30;  // 입장할 때 불러올 최근 채팅 수
 const CHAT_MAX_LENGTH = 200;   // 채팅 한 줄 최대 글자 수 (DB 컬럼 길이와 같음)
@@ -15,7 +16,7 @@ const EMOTE_COOLDOWN_MS = 800; // 이모티콘 도배 방지
 
 function setupSockets(server, sessionMiddleware) {
   const io = new Server(server);
-  accounts.setIo(io); // 계정 삭제 시 접속 중인 사람을 끊을 수 있게 넘겨 줌
+  realtime.setIo(io); // 라우트에서도 쓸 수 있게 보관 (계정 삭제 시 끊기, 게시판 알림)
 
   // 로그인 세션을 socket.io에서도 읽을 수 있게 연결 (socket.request.session)
   io.engine.use(sessionMiddleware);

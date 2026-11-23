@@ -24,6 +24,9 @@
      | 시소 | 2명 | 두 명이 다 타야 오르내림 (한 명이면 내려간 채로 대기) |
      | 뺑뺑이 | 최대 4명 | 한 명만 타도 돌고, 탄 사람 모두 같이 돎 |
    - 같은 서버에 있는 사람끼리만 위치와 채팅이 실시간으로 공유됨
+   - **게시판**: 입구 옆 게시판 앞에서 **Shift**(또는 오른쪽 위 📌 버튼) → 글 목록/읽기/쓰기, 내 글 수정·삭제 (서버 1~3 공통, 새 글은 모든 서버 채팅창에 알림)
+4. **관리자** (`is_admin = 1` 계정): 사용자 목록, 강제 탈퇴, DB 구조(ERD) 페이지, 모든 게시글 삭제 가능
+5. **회원 탈퇴**: 서버 선택 화면 아래 링크 → 비밀번호 확인 후 계정과 채팅·접속 기록·게시글 삭제
 
 ## 폴더 구조
 
@@ -35,6 +38,8 @@ routes/auth.js      메인, 회원가입, 로그인, 로그아웃
 routes/lobby.js     서버 선택, 입장, 놀이터 화면, 인원 API
 routes/account.js   회원 탈퇴 (비밀번호 확인 후 계정 + 채팅 + 접속 기록 삭제)
 routes/admin.js     관리자 페이지: 사용자 목록, 강제 탈퇴, DB 구조(ERD) 보기
+routes/posts.js     놀이터 게시판 API (/api/posts: 목록, 읽기, 쓰기, 수정, 삭제)
+lib/realtime.js     socket.io를 라우트에서도 쓰게 보관 (게시판 새 글 알림, 탈퇴 시 접속 끊기)
 lib/accounts.js     계정 삭제 공통 처리 (접속 끊기, 남은 세션 막기), is_admin 컬럼 자동 추가
 sockets/index.js    실시간 기능 (입장/퇴장, 채팅 저장, 위치 동기화)
 game/rooms.js       서버 1~3의 접속자와 위치 (메모리)
@@ -45,9 +50,10 @@ public/js/game3d.js 3D 장면, 이동, 카메라, 닉네임/말풍선
 public/js/map.js    예비 놀이터 맵 (playground.glb를 못 불러올 때 코드로 만드는 맵)
 public/js/characters.js  캐릭터 모델 불러오기 + 색 바꾸기
 public/js/rides.js  놀이기구 움직임 (서버 시각 기준으로 모든 화면이 같은 동작 계산)
+public/js/board.js  게시판 창 (목록/읽기/쓰기·수정, 글 내용은 textContent로만 표시)
 public/js/admin-erd.js  관리자 DB 구조 화면에서 테이블 사이 관계선(1:N) 그리기
 public/js/loader.js 모델 불러오기 공통 (Draco 압축 해제, 로딩 진행률, 캐시용 버전 번호)
-public/models/      캐릭터 GLB 5종 + 놀이터 맵 playground.glb
+public/models/      캐릭터 GLB 5종 + 놀이터 맵 playground.glb + 게시판 board.glb
 public/images/logo.png  메인 화면 로고 (제미나이로 만든 시안을 배경 투명 처리)
 assets/blender/     Blender 원본 (캐릭터 5종 + 놀이터 씬)
 assets/renders/     Blender 렌더 이미지
@@ -63,6 +69,7 @@ erDiagram
     users ||--o{ chat_messages : "작성"
     rooms ||--o{ chat_messages : "보낸 서버"
     users ||--o{ play_logs : "접속 기록"
+    users ||--o{ posts : "게시글"
     rooms ||--o{ play_logs : "접속한 서버"
 
     toys {
@@ -101,6 +108,14 @@ erDiagram
         DATETIME left_at "퇴장 시간"
         FLOAT last_x "퇴장 시 위치"
         FLOAT last_z
+    }
+    posts {
+        INT id PK
+        INT user_id FK
+        VARCHAR title "최대 50자"
+        VARCHAR content "최대 1000자"
+        DATETIME created_at
+        DATETIME updated_at "수정 시각"
     }
 ```
 

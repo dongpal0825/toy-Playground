@@ -27,9 +27,12 @@
 
   <!-- 오른쪽 위: 나가기 버튼 + 조작법 -->
   <div id="top-right">
-    <a class="btn small ghost" href="/servers">서버 선택으로</a>
+    <div class="top-buttons">
+      <button type="button" class="btn small" id="board-open-btn">📌 게시판</button>
+      <a class="btn small ghost" href="/servers">서버 선택으로</a>
+    </div>
     <div id="help">
-      <b>WASD</b> 이동 · <b>Space</b> 점프 · <b>우클릭 드래그</b> 시점 회전 · <b>휠</b> 확대/축소 · <b>Enter</b> 채팅 · <b>1~6</b> 이모티콘 · <b>Shift</b> 놀이기구
+      <b>WASD</b> 이동 · <b>Space</b> 점프 · <b>우클릭 드래그</b> 시점 회전 · <b>휠</b> 확대/축소 · <b>Enter</b> 채팅 · <b>1~6</b> 이모티콘 · <b>Shift</b> 놀이기구 · 게시판
     </div>
   </div>
 
@@ -51,6 +54,49 @@
       <div class="loading-title">놀이터 준비 중…</div>
       <div class="loading-bar"><div id="loading-fill"></div></div>
       <div id="loading-text">0%</div>
+    </div>
+  </div>
+
+  <!-- 놀이터 게시판 창 (게시판 오브젝트 앞에서 Shift 또는 오른쪽 위 버튼으로 열림, board.js가 내용을 채움) -->
+  <div id="board" class="hidden" role="dialog" aria-label="놀이터 게시판">
+    <div class="board-box">
+      <header class="board-head">
+        <span class="board-title">📌 놀이터 게시판</span>
+        <span class="board-sub" id="board-sub"></span>
+        <button type="button" class="board-close" id="board-close" title="닫기 (Esc)">✕</button>
+      </header>
+      <p class="board-error hidden" id="board-error"></p>
+
+      <!-- 목록 -->
+      <section id="board-list-view">
+        <div class="board-actions"><button type="button" class="btn small" id="board-write">✏️ 글쓰기</button></div>
+        <ul id="board-list"></ul>
+      </section>
+
+      <!-- 글 읽기 -->
+      <section id="board-read-view" class="hidden">
+        <h3 id="board-read-title"></h3>
+        <p class="board-meta" id="board-read-meta"></p>
+        <div class="board-content" id="board-read-content"></div>
+        <div class="board-actions">
+          <button type="button" class="btn small ghost" id="board-back">← 목록</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn small" id="board-edit">수정</button>
+          <button type="button" class="btn small danger" id="board-delete">삭제</button>
+        </div>
+      </section>
+
+      <!-- 글쓰기 / 수정 -->
+      <form id="board-form-view" class="hidden" autocomplete="off">
+        <input id="board-input-title" maxlength="50" placeholder="제목 (50자까지)" required>
+        <textarea id="board-input-content" maxlength="1000" rows="8" placeholder="친구들과 나누고 싶은 이야기를 적어 보세요 (1000자까지)" required></textarea>
+        <div class="board-actions">
+          <span class="board-count" id="board-count">0 / 1000</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn small ghost" id="board-cancel">취소</button>
+          <button class="btn small" id="board-save">등록</button>
+        </div>
+      </form>
     </div>
   </div>
 

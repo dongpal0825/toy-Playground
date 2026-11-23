@@ -15,6 +15,8 @@ const BUBBLE_MS = 5000;      // 말풍선이 떠 있는 시간
 const JUMP_SPEED = 7.5;      // 점프할 때 위로 튀어 오르는 속도
 const GRAVITY = 24;          // 중력 (클수록 빨리 떨어짐)
 const EMOTE_MS = 2200;       // 이모티콘이 떠 있는 시간 (CSS 애니메이션 길이와 같음)
+// 게시판 오브젝트: 입구 길 옆에 세우고 앞면이 길(-x 방향)을 보게 함. 앞에 서서 Shift를 누르면 게시판 창이 열림
+const BOARD = { x: 7.5, z: 15, yaw: -Math.PI / 2, zone: { x: 6.2, z: 15, r: 2.2 } };
 
 export async function createGame({ container, me, toys, isTyping, onMove, onPrompt }) {
   // WebGL을 쓸 수 없으면 에러를 던져서 play.js가 "채팅만 모드"로 전환하게 함
@@ -67,6 +69,7 @@ export async function createGame({ container, me, toys, isTyping, onMove, onProm
   // 놀이터 맵: Blender로 만든 playground.glb를 먼저 불러오고, 실패하면 코드로 만든 맵(map.js)을 사용
   const map = await loadMap();
   scene.add(map.group);
+  await addBoard(scene, map.colliders);
   // 놀이기구 (맵에 RIDE_/SEAT_/ZONE_ 표시가 있을 때만 동작, 예비 맵에서는 비활성)
   const rides = createRides(map.group);
   if (window.__dbg) Object.assign(window.__dbg, { rides, getChars: () => characters, getSelf: () => self }); // 개발용 (?debug)
@@ -335,11 +338,18 @@ export async function createGame({ container, me, toys, isTyping, onMove, onProm
     }
   }
 
+  // 내 캐릭터가 게시판 앞 구역 안에 있는지
+  function nearBoard() {
+    const p = self.root.position;
+    return Math.hypot(p.x - BOARD.zone.x, p.z - BOARD.zone.z) < BOARD.zone.r;
+  }
+
   // 화면 아래 안내 문구: 놀이기구 근처면 "Shift: 타기", 타는 중이면 "Shift: 내리기"
   let lastPrompt = null;
   function updatePrompt() {
     let text = null;
-    if (self && rides.available) {
+    if (self && nearBoard() && !(rides.available && rides.rideOf(selfId))) text = 'Shift: 게시판 보기';
+    else if (self && rides.available) {
       const mine = rides.rideOf(selfId);
       if (mine) {
         if (mine.ride === 'slide') text = '슝~ 미끄럼틀 타는 중!';
@@ -370,7 +380,9 @@ export async function createGame({ container, me, toys, isTyping, onMove, onProm
     },
     // Shift를 눌렀을 때 할 일: 타고 있으면 내리기, 놀이기구 근처면 타기
     interact() {
-      if (!self || !rides.available) return null;
+      if (!self) return null;
+      if (nearBoard() && !(rides.available && rides.rideOf(selfId))) return { type: 'board' };
+      if (!rides.available) return null;
       if (rides.rideOf(selfId)) return { type: 'leave' };
       const near = rides.nearestZone(self.root.position);
       return near ? { type: 'join', ride: near } : null;
@@ -380,6 +392,10 @@ export async function createGame({ container, me, toys, isTyping, onMove, onProm
     },
     clearKey(code) {
       keys.delete(code);
+    },
+    // 게시판 창을 열 때: 누르고 있던 이동 키를 모두 뗀 것으로 처리 (창이 열린 채로 계속 걸어가지 않게)
+    releaseKeys() {
+      keys.clear();
     },
     setPlayers(list, myId) {
       selfId = myId;
@@ -471,6 +487,30 @@ async function loadMap() {
     console.warn('playground.glb를 불러오지 못해서 기본 맵을 사용해요:', err.message);
     return createMap();
   }
+}
+
+// 게시판 오브젝트(Blender로 만든 board.glb)를 놓고 충돌 영역을 추가
+// 판이 옆으로 넓어서(약 2.6m) 동그란 충돌 영역 3개를 판 방향으로 나란히 놓음
+async function addBoard(scene, colliders) {
+  let obj;
+  try {
+    obj = (await loadGLB('board.glb')).scene;
+    obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  } catch (err) {
+    // 모델을 못 불러오면 갈색 판자로 대신 표시
+    console.warn('board.glb를 불러오지 못해서 기본 판자로 표시해요:', err.message);
+    obj = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 0.15), new THREE.MeshStandardMaterial({ color: 0xa0673a }));
+    obj.position.y = 1.4;
+    const g = new THREE.Group();
+    g.add(obj);
+    obj = g;
+  }
+  obj.position.set(BOARD.x, 0, BOARD.z);
+  obj.rotation.y = BOARD.yaw;
+  scene.add(obj);
+  // 판의 가로 방향 = 모델의 x축을 yaw만큼 돌린 방향
+  const ax = Math.cos(BOARD.yaw), az = -Math.sin(BOARD.yaw);
+  for (const d of [-0.9, 0, 0.9]) colliders.push({ x: BOARD.x + ax * d, z: BOARD.z + az * d, r: 0.45 });
 }
 
 // 하늘 배경: 위에서 아래로 색이 옅어지는 그라데이션 (작은 캔버스 이미지로 만듦)

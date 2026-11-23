@@ -1,6 +1,8 @@
 // play.js: 놀이터 화면의 시작 파일. 서버 연결, 채팅 패널/입력, 3D 게임과의 연결을 담당
 // (3D 부분은 game3d.js로 분리해서, 3D가 실패해도 채팅은 계속 동작하게 함)
 
+import { openBoard, isBoardOpen, boardChanged } from './board.js';
+
 const pageData = JSON.parse(document.getElementById('page-data').textContent);
 const chatLog = document.getElementById('chat-log');
 const chatForm = document.getElementById('chat-form');
@@ -80,6 +82,12 @@ socket.on('emote', (e) => {
 // 입장/퇴장 같은 안내 메시지
 socket.on('system', (text) => addSystemLine(text));
 
+// 게시판에 변화가 생김 (모든 서버에 옴): 새 글이면 채팅창에 안내, 게시판이 열려 있으면 목록 새로고침
+socket.on('board', (ev) => {
+  if (ev.type === 'new') addSystemLine(`📌 ${ev.nickname}님이 게시판에 새 글을 올렸어요: ${ev.title}`);
+  boardChanged(ev);
+});
+
 // 더 이상 놀 수 없는 상황 (중복 접속, 서버 꽉 참 등)
 socket.on('fatal', (msg) => showNotice(msg, true));
 socket.on('disconnect', () => showNotice('서버와 연결이 끊겼어요.', true));
@@ -149,6 +157,7 @@ chatForm.addEventListener('submit', (e) => {
 
 // 게임 화면에서 Enter를 누르면 입력창으로 이동, 입력 중 Esc를 누르면 빠져나옴
 window.addEventListener('keydown', (e) => {
+  if (isBoardOpen()) return; // 게시판 창이 열려 있으면 Enter는 게시판 입력에 씀
   if (e.key === 'Enter' && document.activeElement !== chatInput) {
     e.preventDefault();
     chatInput.focus();
@@ -208,7 +217,9 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Shift' || (e.code === 'Space' && riding)) {
     const act = game.interact();
     if (!act) return;
-    if (act.type === 'leave') {
+    if (act.type === 'board') {
+      openBoardWindow();
+    } else if (act.type === 'leave') {
       socket.emit('ride-leave');
       game.clearKey('Space'); // 내리자마자 점프하지 않게
     } else {
@@ -217,8 +228,21 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// 채팅 입력 중인지 (입력 중에는 WASD로 캐릭터가 움직이지 않게 3D 쪽에서 확인)
+// ===== 게시판 =====
+// 게시판 오브젝트 앞 Shift 또는 오른쪽 위 버튼으로 열기 (3D가 안 돼도 버튼으로 쓸 수 있음)
+function openBoardWindow() {
+  if (game) game.releaseKeys();
+  openBoard();
+}
+const boardBtn = document.getElementById('board-open-btn');
+boardBtn.addEventListener('click', () => {
+  boardBtn.blur();
+  openBoardWindow();
+});
+
+// 채팅 입력 중이거나 게시판 창이 열려 있는지 (이때는 WASD/점프/이모티콘/Shift가 동작하지 않게 3D 쪽에서 확인)
 function isTyping() {
+  if (isBoardOpen()) return true;
   const el = document.activeElement;
   return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
 }

@@ -60,6 +60,7 @@ app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/lobby'));
 app.use('/', require('./routes/account'));  // 회원 탈퇴
 app.use('/admin', require('./routes/admin')); // 관리자 페이지
+app.use('/api/posts', require('./routes/posts')); // 놀이터 게시판 API
 
 // 없는 주소: 화면 주소면 메인으로 돌려보내고, 파일(.glb, .js 등)이면 404
 app.use((req, res) => {
