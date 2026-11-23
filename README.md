@@ -44,6 +44,7 @@ public/js/characters.js  캐릭터 모델 불러오기 + 색 바꾸기
 public/js/rides.js  놀이기구 움직임 (서버 시각 기준으로 모든 화면이 같은 동작 계산)
 public/js/loader.js 모델 불러오기 공통 (Draco 압축 해제, 로딩 진행률, 캐시용 버전 번호)
 public/models/      캐릭터 GLB 5종 + 놀이터 맵 playground.glb
+public/images/logo.png  메인 화면 로고 (제미나이로 만든 시안을 배경 투명 처리)
 assets/blender/     Blender 원본 (캐릭터 5종 + 놀이터 씬)
 assets/renders/     Blender 렌더 이미지
 tools/test-bot.js   혼자서 멀티플레이를 테스트하는 봇

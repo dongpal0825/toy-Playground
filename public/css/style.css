@@ -43,6 +43,7 @@ body {
   color: #ff5a5f;
   text-shadow: 3px 3px 0 #ffd23f;
 }
+.logo img { display: block; width: 100%; height: auto; margin: -6px auto 0; }
 .subtitle { text-align: center; margin: 12px 0 20px; color: #666; font-size: 14px; }
 
 /* 로그인 / 회원가입 탭 */
