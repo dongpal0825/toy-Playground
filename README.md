@@ -5,7 +5,7 @@
 - 서버: Node.js + Express + EJS + mysql2 + socket.io + express-session + bcrypt
 - 클라이언트: Three.js (GLTFLoader, CSS2DRenderer), 순수 JavaScript
 - DB: MariaDB (로컬 개발은 MySQL 8)
-- 3D 모델: 캐릭터 5종과 놀이터 맵 모두 Blender에서 기본 도형을 조합해 직접 제작 → Draco 압축 GLB로 내보냄 (`assets/blender/toys.blend`)
+- 3D 모델: 캐릭터 5종과 놀이터 맵(게시판 포함) 모두 Claude와 Blender MCP를 이용해 Blender에서 기본 도형을 조합해 제작 → Draco 압축 GLB로 내보냄 (`assets/blender/toys.blend`)
   - 캐릭터 각 약 2~3만 삼각형, 놀이터 약 34만 삼각형, 전체 다운로드 약 4.3MB (텍스처 없이 색 + 구워 넣은 AO로 입체감)
 
 ![놀이터 렌더](assets/renders/playground.png)
@@ -55,7 +55,7 @@ public/js/admin-erd.js  관리자 DB 구조 화면에서 테이블 사이 관계
 public/js/loader.js 모델 불러오기 공통 (Draco 압축 해제, 로딩 진행률, 캐시용 버전 번호)
 public/models/      캐릭터 GLB 5종 + 놀이터 맵 playground.glb + 게시판 board.glb
 public/images/logo.png  메인 화면 로고 (제미나이로 만든 시안을 배경 투명 처리)
-assets/blender/     Blender 원본 (캐릭터 5종 + 놀이터 씬)
+assets/blender/     Blender 원본 (캐릭터 5종 + 놀이터 씬 + 게시판, Claude + Blender MCP로 제작)
 assets/renders/     Blender 렌더 이미지
 tools/test-bot.js   혼자서 멀티플레이를 테스트하는 봇 (RIDE=tour: 시연용으로 돌아다니며 놀이기구 타기)
 tools/create-admin.js  관리자 계정 만들기 (비밀번호는 실행할 때 입력, 코드에 남기지 않음)
