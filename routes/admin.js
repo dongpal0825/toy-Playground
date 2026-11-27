@@ -140,12 +140,12 @@ router.get('/db', async (req, res, next) => {
   }
 });
 
-// 예시 데이터 표시용: 비밀번호 해시는 앞부분만, 날짜는 읽기 쉽게
+// 예시 데이터 표시용: 비밀번호 해시는 앞부분만, 날짜는 읽기 쉽게 (EC2 서버 시계가 UTC라서 한국 시간으로 바꿔 표시)
 function maskRow(row) {
   const out = {};
   for (const [k, v] of Object.entries(row)) {
     if (k === 'password_hash') out[k] = String(v).slice(0, 12) + '…';
-    else if (v instanceof Date) out[k] = v.toLocaleString('ko-KR', { hour12: false });
+    else if (v instanceof Date) out[k] = v.toLocaleString('ko-KR', { hour12: false, timeZone: 'Asia/Seoul' });
     else out[k] = v;
   }
   return out;

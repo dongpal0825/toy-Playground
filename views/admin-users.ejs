@@ -36,11 +36,11 @@
                 <td><%= u.nickname %></td>
                 <td><span class="color-dot" style="background: <%= u.color %>"></span><%= u.toy %></td>
                 <td><% if (u.is_admin) { %><span class="badge admin">관리자</span><% } else { %>일반<% } %></td>
-                <td><%= u.created_at.toLocaleString('ko-KR', { hour12: false }) %></td>
+                <td><%= u.created_at.toLocaleString('ko-KR', { hour12: false, timeZone: 'Asia/Seoul' }) %></td>
                 <td class="num"><%= u.chats %></td>
                 <td class="num"><%= u.posts %></td>
                 <td class="num"><%= u.visits %></td>
-                <td><%= u.last_seen ? u.last_seen.toLocaleString('ko-KR', { hour12: false }) : '-' %></td>
+                <td><%= u.last_seen ? u.last_seen.toLocaleString('ko-KR', { hour12: false, timeZone: 'Asia/Seoul' }) : '-' %></td>
                 <td><% if (u.online) { %><span class="badge online">서버 <%= u.online %> 접속 중</span><% } else { %><span class="muted">오프라인</span><% } %></td>
                 <td>
                   <% if (!u.is_admin) { %>
